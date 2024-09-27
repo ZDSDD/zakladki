@@ -138,6 +138,12 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		responseWithJsonError(w, "Password is required", 400)
 		return
 	}
+	_, err := cfg.db.GetUserByEmail(r.Context(), userReq.Email)
+	if err == nil {
+		responseWithJsonError(w, "User already exists", 400)
+		return
+	}
+
 	const minEntropy = 1
 	if err := passwordvalidator.Validate(userReq.Password, minEntropy); err != nil {
 		responseWithJsonError(w, err.Error(), 400)
@@ -162,7 +168,6 @@ type UserResponseLogin struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 	Token        string    `json:"token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
-	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 func mapToJson(du *database.User, token string, refreshToken string) UserResponseLogin {

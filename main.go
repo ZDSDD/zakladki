@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/zdsdd/zakladki/internal/database"
 )
 
@@ -51,6 +52,10 @@ func main() {
 	// JWT-related routers
 	mux.HandleFunc("POST /api/refresh", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleRefreshToken)))
 	mux.HandleFunc("POST /api/revoke", cfg.requireBearerToken(cfg.handleRevokeToken))
+
+	// Admin-related routes
+	mux.HandleFunc("POST /admin/reset", cfg.handleReset)
+
 	// http.ListenAndServe(":3000", r)
 	// Start the server
 	log.Printf("Server running successfully on port: %s\n", port)
