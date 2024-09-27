@@ -29,7 +29,7 @@ func (cfg *apiConfig) handleReset(rw http.ResponseWriter, r *http.Request) {
 	}
 	cfg.fileserverHits.Store(0)
 	cfg.db.PurgeUsers(r.Context())
-	rw.WriteHeader(http.StatusOK)
+	rw.WriteHeader(204)
 }
 
 func (cfg *apiConfig) handleMetrics(rw http.ResponseWriter, _ *http.Request) {

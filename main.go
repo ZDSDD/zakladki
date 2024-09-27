@@ -47,7 +47,9 @@ func main() {
 	// User-related routes
 	mux.HandleFunc("POST /api/users", cfg.handleCreateUser)
 	mux.HandleFunc("POST /api/login", cfg.handleLogin)
+
 	mux.HandleFunc("PUT /api/users", cfg.requireBearerToken(cfg.handleUpdateUser))
+	//TODO: seperate updating password and email^^^
 
 	// JWT-related routers
 	mux.HandleFunc("POST /api/refresh", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleRefreshToken)))

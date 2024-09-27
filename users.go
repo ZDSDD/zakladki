@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -220,6 +221,10 @@ func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request, t
 		ID:             user.ID,
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			responseWithJsonError(w, "Email already exists", 403)
+			return
+		}
 		responseWithJsonError(w, err.Error(), 500)
 		return
 	}
