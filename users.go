@@ -11,28 +11,14 @@ import (
 	"github.com/zdsdd/zakladki/internal/database"
 )
 
-func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
-	type UserReqBody struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	var userReq UserReqBody
-	json.NewDecoder(r.Body).Decode(&userReq)
-	if userReq.Email == "" {
-		responseWithJsonError(w, "Email is required", 400)
-		return
-	}
-	if userReq.Password == "" {
-		responseWithJsonError(w, "Password is required", 400)
-		return
-	}
-	user, err := cfg.db.GetUserByEmail(r.Context(), userReq.Email)
+func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request, email, password string) {
+	user, err := cfg.db.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		responseWithJsonError(w, err.Error(), 500)
 		return
 	}
 
-	if err := auth.CheckPasswordHash(userReq.Password, user.HashedPassword); err != nil {
+	if err := auth.CheckPasswordHash(password, user.HashedPassword); err != nil {
 		responseWithJsonError(w, "Invalid password", 401)
 		return
 	}
@@ -64,6 +50,26 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	responseWithJson(mapToJson(&user, token, refreshToken.Token), w, http.StatusOK)
+}
+
+func (cfg *apiConfig) requireLoginAndPassword(next func(w http.ResponseWriter, r *http.Request, email, password string)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		type UserReqBody struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		var userReq UserReqBody
+		json.NewDecoder(r.Body).Decode(&userReq)
+		if userReq.Email == "" {
+			responseWithJsonError(w, "Email is required", 400)
+			return
+		}
+		if userReq.Password == "" {
+			responseWithJsonError(w, "Password is required", 400)
+			return
+		}
+		next(w, r, userReq.Email, userReq.Password)
+	}
 }
 
 func (cfg *apiConfig) handleRefreshToken(w http.ResponseWriter, r *http.Request, refreshToken string, user *database.User) {
@@ -130,39 +136,25 @@ func (cfg *apiConfig) handleRevokeToken(w http.ResponseWriter, r *http.Request, 
 	}
 	w.WriteHeader(204)
 }
-func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
-	type UserReqBody struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request, email, password string) {
 
-	var userReq UserReqBody
-	json.NewDecoder(r.Body).Decode(&userReq)
-	if userReq.Email == "" {
-		responseWithJsonError(w, "Email is required", 400)
-		return
-	}
-	if userReq.Password == "" {
-		responseWithJsonError(w, "Password is required", 400)
-		return
-	}
-	_, err := cfg.db.GetUserByEmail(r.Context(), userReq.Email)
+	_, err := cfg.db.GetUserByEmail(r.Context(), email)
 	if err == nil {
 		responseWithJsonError(w, "User already exists", 400)
 		return
 	}
-	if !auth.IsEmailValid(userReq.Email) {
+	if !auth.IsEmailValid(email) {
 		responseWithJsonError(w, "Invalid email", 400)
 		return
 	}
-	if err := auth.CheckPasswordStrength(userReq.Password, cfg.minPasswordEntropy); err != nil {
+	if err := auth.CheckPasswordStrength(password, cfg.minPasswordEntropy); err != nil {
 		responseWithJsonError(w, err.Error(), 400)
 		return
 	}
-	hashedPasswd, err := auth.HashPassword(userReq.Password)
+	hashedPasswd, err := auth.HashPassword(password)
 
 	user, err := cfg.db.CreateUser(r.Context(), database.CreateUserParams{
-		Email:          userReq.Email,
+		Email:          email,
 		HashedPassword: hashedPasswd,
 	})
 	if err != nil {

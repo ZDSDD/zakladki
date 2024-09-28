@@ -46,8 +46,8 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", cfg.handleAdminMetrics)
 
 	// User-related routes
-	mux.HandleFunc("POST /api/users", cfg.handleCreateUser)
-	mux.HandleFunc("POST /api/login", cfg.handleLogin)
+	mux.HandleFunc("POST /api/users", cfg.requireLoginAndPassword(cfg.handleCreateUser))
+	mux.HandleFunc("POST /api/login", cfg.requireLoginAndPassword(cfg.handleLogin))
 
 	// mux.HandleFunc("PUT /api/users", cfg.requireBearerToken(cfg.handleUpdateUser))
 	mux.HandleFunc("PUT /api/users/password", cfg.requireValidJWTToken(cfg.handleUpdatePassword))
