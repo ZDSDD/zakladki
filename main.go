@@ -50,11 +50,11 @@ func main() {
 	mux.HandleFunc("POST /api/login", cfg.handleLogin)
 
 	// mux.HandleFunc("PUT /api/users", cfg.requireBearerToken(cfg.handleUpdateUser))
-	mux.HandleFunc("PUT /api/users/password", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleUpdatePassword)))
-	mux.HandleFunc("PUT /api/users/email", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleUpdateEmail)))
+	mux.HandleFunc("PUT /api/users/password", cfg.requireValidJWTToken(cfg.handleUpdatePassword))
+	mux.HandleFunc("PUT /api/users/email", cfg.requireValidJWTToken(cfg.handleUpdateEmail))
 
 	// JWT-related routers
-	mux.HandleFunc("POST /api/refresh", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleRefreshToken)))
+	mux.HandleFunc("POST /api/refresh", cfg.requireValidJWTToken(cfg.handleRefreshToken))
 	mux.HandleFunc("POST /api/revoke", cfg.requireBearerToken(cfg.handleRevokeToken))
 
 	// Admin-related routes

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	passwordvalidator "github.com/wagslane/go-password-validator"
 	"github.com/zdsdd/zakladki/internal/auth"
 	"github.com/zdsdd/zakladki/internal/database"
 )
@@ -64,12 +63,6 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
 		})
 	}
-
-	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
-		return
-	}
-
 	responseWithJson(mapToJson(&user, token, refreshToken.Token), w, http.StatusOK)
 }
 
@@ -110,9 +103,9 @@ func (cfg *apiConfig) requireBearerToken(next func(w http.ResponseWriter, r *htt
 	}
 }
 
-// 2. Validate the JWT token and load the associated user
-func (cfg *apiConfig) requireValidJWTToken(next func(w http.ResponseWriter, r *http.Request, token string, user *database.User)) func(w http.ResponseWriter, r *http.Request, token string) {
-	return func(w http.ResponseWriter, r *http.Request, token string) {
+// RequireBearerToken wrapper with JWT token validation
+func (cfg *apiConfig) requireValidJWTToken(next func(w http.ResponseWriter, r *http.Request, token string, user *database.User)) http.HandlerFunc {
+	return cfg.requireBearerToken(func(w http.ResponseWriter, r *http.Request, token string) {
 		userId, err := auth.ValidateJWT(token, cfg.jwtSecret) // Validate JWT token
 		if err != nil {
 			responseWithJsonError(w, err.Error(), http.StatusUnauthorized)
@@ -125,10 +118,9 @@ func (cfg *apiConfig) requireValidJWTToken(next func(w http.ResponseWriter, r *h
 			responseWithJsonError(w, "User not found", http.StatusUnauthorized)
 			return
 		}
-
 		// Call the next function with token and user
 		next(w, r, token, &user)
-	}
+	})
 }
 func (cfg *apiConfig) handleRevokeToken(w http.ResponseWriter, r *http.Request, refreshToken string) {
 	err := cfg.db.RevokeRefreshToken(r.Context(), refreshToken)
@@ -159,10 +151,13 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		responseWithJsonError(w, "User already exists", 400)
 		return
 	}
-
-	const minEntropy = 1
-	if err := passwordvalidator.Validate(userReq.Password, minEntropy); err != nil {
+	if !auth.IsEmailValid(userReq.Email) {
+		responseWithJsonError(w, "Invalid email", 400)
+		return
+	}
+	if err := auth.CheckPasswordStrength(userReq.Password, cfg.minPasswordEntropy); err != nil {
 		responseWithJsonError(w, err.Error(), 400)
+		return
 	}
 	hashedPasswd, err := auth.HashPassword(userReq.Password)
 
@@ -197,56 +192,6 @@ func mapToJson(du *database.User, token string, refreshToken string) UserRespons
 	}
 }
 
-func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request, token string) {
-	type UserReqBody struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	var userReq UserReqBody
-	json.NewDecoder(r.Body).Decode(&userReq)
-	if userReq.Email == "" {
-		responseWithJsonError(w, "Email is required", 400)
-		return
-	}
-	if userReq.Password == "" {
-		responseWithJsonError(w, "Password is required", 400)
-		return
-	}
-
-	userId, err := auth.ValidateJWT(token, cfg.jwtSecret)
-	user, err := cfg.db.GetUserById(r.Context(), userId)
-	if err != nil {
-		responseWithJsonError(w, err.Error(), 401)
-		return
-	}
-
-	if userId != user.ID {
-		responseWithJsonError(w, "Unauthorized", 401)
-		return
-	}
-	if err := passwordvalidator.Validate(userReq.Password, cfg.minPasswordEntropy); err != nil {
-		responseWithJsonError(w, err.Error(), 400)
-	}
-	hashedPasswd, err := auth.HashPassword(userReq.Password)
-
-	updatedUser, err := cfg.db.UpdateUser(r.Context(), database.UpdateUserParams{
-		Email:          userReq.Email,
-		HashedPassword: hashedPasswd,
-		ID:             user.ID,
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			responseWithJsonError(w, "Email already exists", 403)
-			return
-		}
-		responseWithJsonError(w, err.Error(), 500)
-		return
-	}
-
-	responseWithJson(mapToJson(&updatedUser, "", ""), w, 200)
-
-}
-
 func (cfg *apiConfig) handleUpdateEmail(w http.ResponseWriter, r *http.Request, token string, user *database.User) {
 	type UserReqBody struct {
 		Email string `json:"email"`
@@ -257,7 +202,10 @@ func (cfg *apiConfig) handleUpdateEmail(w http.ResponseWriter, r *http.Request, 
 		responseWithJsonError(w, "Email is required", 400)
 		return
 	}
-
+	if !auth.IsEmailValid(userReq.Email) {
+		responseWithJsonError(w, "Invalid email", 400)
+		return
+	}
 	updatedUser, err := cfg.db.UpdateUserEmail(r.Context(), database.UpdateUserEmailParams{
 		Email: userReq.Email,
 		ID:    user.ID,
@@ -284,9 +232,19 @@ func (cfg *apiConfig) handleUpdatePassword(w http.ResponseWriter, r *http.Reques
 		responseWithJsonError(w, "password is required", 400)
 		return
 	}
+	if err := auth.CheckPasswordStrength(userReq.Password, cfg.minPasswordEntropy); err != nil {
+		responseWithJsonError(w, err.Error(), 400)
+		return
+	}
+
+	hashesPassword, err := auth.HashPassword(userReq.Password)
+	if err != nil {
+		responseWithJsonError(w, err.Error(), 500)
+		return
+	}
 
 	updatedUser, err := cfg.db.UpdateUserPassword(r.Context(), database.UpdateUserPasswordParams{
-		HashedPassword: userReq.Password,
+		HashedPassword: hashesPassword,
 		ID:             user.ID,
 	})
 	if err != nil {
