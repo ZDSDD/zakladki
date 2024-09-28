@@ -132,11 +132,17 @@ const updateExpiresAtRefreshToken = `-- name: UpdateExpiresAtRefreshToken :one
 UPDATE refresh_tokens
 SET updated_at=NOW(),
     expires_at=$1
+WHERE user_id=$2
 RETURNING token, created_at, updated_at, user_id, expires_at, revoked_at
 `
 
-func (q *Queries) UpdateExpiresAtRefreshToken(ctx context.Context, expiresAt time.Time) (RefreshToken, error) {
-	row := q.db.QueryRowContext(ctx, updateExpiresAtRefreshToken, expiresAt)
+type UpdateExpiresAtRefreshTokenParams struct {
+	ExpiresAt time.Time
+	UserID    uuid.UUID
+}
+
+func (q *Queries) UpdateExpiresAtRefreshToken(ctx context.Context, arg UpdateExpiresAtRefreshTokenParams) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, updateExpiresAtRefreshToken, arg.ExpiresAt, arg.UserID)
 	var i RefreshToken
 	err := row.Scan(
 		&i.Token,

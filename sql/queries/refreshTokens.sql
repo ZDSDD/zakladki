@@ -49,4 +49,5 @@ WHERE
 UPDATE refresh_tokens
 SET updated_at=NOW(),
     expires_at=$1
+WHERE user_id=$2
 RETURNING *;

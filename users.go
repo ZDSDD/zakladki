@@ -43,7 +43,10 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var refreshToken database.RefreshToken
 	_, err = cfg.db.GetRefreshTokenForUser(r.Context(), user.ID)
 	if err == nil { //There is already refresh token for this user in the database.
-		refreshToken, err = cfg.db.UpdateExpiresAtRefreshToken(r.Context(), time.Now().Add(time.Hour*24*60))
+		refreshToken, err = cfg.db.UpdateExpiresAtRefreshToken(r.Context(), database.UpdateExpiresAtRefreshTokenParams{
+			ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
+			UserID:    user.ID,
+		})
 		if err != nil {
 			responseWithJsonError(w, err.Error(), 500)
 			return
