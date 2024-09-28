@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/zdsdd/zakladki/internal/database"
+	"github.com/zdsdd/zakladki/internal/users"
 )
 
 func main() {
@@ -40,22 +41,13 @@ func main() {
 		Handler: mux,
 		Addr:    ":" + port,
 	}
+	userService := users.NewUserService(dbQueries, cfg.jwtSecret, cfg.minPasswordEntropy)
+	userService.RegisterRoutes(mux)
 	// Health check and Metrics endpoints
 	mux.HandleFunc("GET /api/healthz", handleHealthz)
 	mux.HandleFunc("GET /api/metrics", cfg.handleMetrics)
 	mux.HandleFunc("GET /admin/metrics", cfg.handleAdminMetrics)
-
-	// User-related routes
-	mux.HandleFunc("POST /api/users", cfg.requireLoginAndPassword(cfg.handleCreateUser))
-	mux.HandleFunc("POST /api/login", cfg.requireLoginAndPassword(cfg.handleLogin))
-
-	// mux.HandleFunc("PUT /api/users", cfg.requireBearerToken(cfg.handleUpdateUser))
-	mux.HandleFunc("PUT /api/users/password", cfg.requireValidJWTToken(cfg.handleUpdatePassword))
-	mux.HandleFunc("PUT /api/users/email", cfg.requireValidJWTToken(cfg.handleUpdateEmail))
-
-	// JWT-related routers
-	mux.HandleFunc("POST /api/refresh", cfg.requireValidJWTToken(cfg.handleRefreshToken))
-	mux.HandleFunc("POST /api/revoke", cfg.requireBearerToken(cfg.handleRevokeToken))
+	mux.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 
 	// Admin-related routes
 	mux.HandleFunc("POST /admin/reset", cfg.handleReset)
