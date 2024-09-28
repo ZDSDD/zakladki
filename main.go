@@ -30,9 +30,10 @@ func main() {
 	dbQueries := database.New(db)
 
 	cfg := &apiConfig{
-		fileserverHits: atomic.Int32{},
-		db:             dbQueries,
-		jwtSecret:      getEnvVariable("JWT_SECRET"),
+		fileserverHits:     atomic.Int32{},
+		db:                 dbQueries,
+		jwtSecret:          getEnvVariable("JWT_SECRET"),
+		minPasswordEntropy: 60.0,
 	}
 
 	server := http.Server{
@@ -48,8 +49,9 @@ func main() {
 	mux.HandleFunc("POST /api/users", cfg.handleCreateUser)
 	mux.HandleFunc("POST /api/login", cfg.handleLogin)
 
-	mux.HandleFunc("PUT /api/users", cfg.requireBearerToken(cfg.handleUpdateUser))
-	//TODO: seperate updating password and email^^^
+	// mux.HandleFunc("PUT /api/users", cfg.requireBearerToken(cfg.handleUpdateUser))
+	mux.HandleFunc("PUT /api/users/password", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleUpdatePassword)))
+	mux.HandleFunc("PUT /api/users/email", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleUpdateEmail)))
 
 	// JWT-related routers
 	mux.HandleFunc("POST /api/refresh", cfg.requireBearerToken(cfg.requireValidJWTToken(cfg.handleRefreshToken)))

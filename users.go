@@ -224,8 +224,7 @@ func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request, t
 		responseWithJsonError(w, "Unauthorized", 401)
 		return
 	}
-	const minEntropy = 1
-	if err := passwordvalidator.Validate(userReq.Password, minEntropy); err != nil {
+	if err := passwordvalidator.Validate(userReq.Password, cfg.minPasswordEntropy); err != nil {
 		responseWithJsonError(w, err.Error(), 400)
 	}
 	hashedPasswd, err := auth.HashPassword(userReq.Password)
@@ -246,4 +245,54 @@ func (cfg *apiConfig) handleUpdateUser(w http.ResponseWriter, r *http.Request, t
 
 	responseWithJson(mapToJson(&updatedUser, "", ""), w, 200)
 
+}
+
+func (cfg *apiConfig) handleUpdateEmail(w http.ResponseWriter, r *http.Request, token string, user *database.User) {
+	type UserReqBody struct {
+		Email string `json:"email"`
+	}
+	var userReq UserReqBody
+	json.NewDecoder(r.Body).Decode(&userReq)
+	if userReq.Email == "" {
+		responseWithJsonError(w, "Email is required", 400)
+		return
+	}
+
+	updatedUser, err := cfg.db.UpdateUserEmail(r.Context(), database.UpdateUserEmailParams{
+		Email: userReq.Email,
+		ID:    user.ID,
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+			responseWithJsonError(w, "Email already exists", 403)
+			return
+		}
+		responseWithJsonError(w, err.Error(), 500)
+		return
+	}
+
+	responseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
+}
+
+func (cfg *apiConfig) handleUpdatePassword(w http.ResponseWriter, r *http.Request, token string, user *database.User) {
+	type UserReqBody struct {
+		Password string `json:"password"`
+	}
+	var userReq UserReqBody
+	json.NewDecoder(r.Body).Decode(&userReq)
+	if userReq.Password == "" {
+		responseWithJsonError(w, "password is required", 400)
+		return
+	}
+
+	updatedUser, err := cfg.db.UpdateUserPassword(r.Context(), database.UpdateUserPasswordParams{
+		HashedPassword: userReq.Password,
+		ID:             user.ID,
+	})
+	if err != nil {
+		responseWithJsonError(w, err.Error(), 500)
+		return
+	}
+
+	responseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
 }

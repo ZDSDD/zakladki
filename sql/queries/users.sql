@@ -46,3 +46,23 @@ SET
 WHERE
     id = $3
 RETURNING *;
+
+-- name: UpdateUserEmail :one
+UPDATE
+    users
+SET
+    email = $1,
+    updated_at = NOW()
+WHERE
+    id = $2
+RETURNING *;
+
+-- name: UpdateUserPassword :one
+UPDATE
+    users
+SET
+    hashed_password = $1,
+    updated_at = NOW()
+WHERE
+    id = $2
+RETURNING *;
