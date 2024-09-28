@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-func responseWithJson(data interface{}, w http.ResponseWriter, code int) {
-	dat, ok := marshalToJson(data)
+func ResponseWithJson(data interface{}, w http.ResponseWriter, code int) {
+	dat, ok := MarshalToJson(data)
 	if !ok {
 		return
 	}
@@ -16,7 +16,7 @@ func responseWithJson(data interface{}, w http.ResponseWriter, code int) {
 	w.Write(dat)
 }
 
-func marshalToJson(data interface{}) (dat []byte, ok bool) {
+func MarshalToJson(data interface{}) (dat []byte, ok bool) {
 	dat, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
@@ -25,8 +25,8 @@ func marshalToJson(data interface{}) (dat []byte, ok bool) {
 	return dat, true
 }
 
-func responseWithJsonError(w http.ResponseWriter, message string, errorCode int) {
-	dat, ok := marshalToJson(struct {
+func ResponseWithJsonError(w http.ResponseWriter, message string, errorCode int) {
+	dat, ok := MarshalToJson(struct {
 		Error string `json:"error"`
 	}{Error: message})
 	if !ok {

@@ -14,12 +14,12 @@ import (
 func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request, email, password string) {
 	user, err := cfg.db.GetUserByEmail(r.Context(), email)
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
 
 	if err := auth.CheckPasswordHash(password, user.HashedPassword); err != nil {
-		responseWithJsonError(w, "Invalid password", 401)
+		ResponseWithJsonError(w, "Invalid password", 401)
 		return
 	}
 
@@ -33,14 +33,14 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request, email,
 			UserID:    user.ID,
 		})
 		if err != nil {
-			responseWithJsonError(w, err.Error(), 500)
+			ResponseWithJsonError(w, err.Error(), 500)
 			return
 		}
 
 	} else {
 		refreshTokenID, err := auth.MakeRefreshToken()
 		if err != nil {
-			responseWithJsonError(w, err.Error(), 500)
+			ResponseWithJsonError(w, err.Error(), 500)
 			return
 		}
 		refreshToken, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
@@ -49,7 +49,7 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request, email,
 			ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
 		})
 	}
-	responseWithJson(mapToJson(&user, token, refreshToken.Token), w, http.StatusOK)
+	ResponseWithJson(mapToJson(&user, token, refreshToken.Token), w, http.StatusOK)
 }
 
 func (cfg *apiConfig) requireLoginAndPassword(next func(w http.ResponseWriter, r *http.Request, email, password string)) http.HandlerFunc {
@@ -61,11 +61,11 @@ func (cfg *apiConfig) requireLoginAndPassword(next func(w http.ResponseWriter, r
 		var userReq UserReqBody
 		json.NewDecoder(r.Body).Decode(&userReq)
 		if userReq.Email == "" {
-			responseWithJsonError(w, "Email is required", 400)
+			ResponseWithJsonError(w, "Email is required", 400)
 			return
 		}
 		if userReq.Password == "" {
-			responseWithJsonError(w, "Password is required", 400)
+			ResponseWithJsonError(w, "Password is required", 400)
 			return
 		}
 		next(w, r, userReq.Email, userReq.Password)
@@ -75,34 +75,34 @@ func (cfg *apiConfig) requireLoginAndPassword(next func(w http.ResponseWriter, r
 func (cfg *apiConfig) handleRefreshToken(w http.ResponseWriter, r *http.Request, refreshToken string, user *database.User) {
 	rtdb, err := cfg.db.GetRefreshToken(r.Context(), refreshToken)
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 401)
+		ResponseWithJsonError(w, err.Error(), 401)
 		return
 	}
 	if rtdb.ExpiresAt.Before(time.Now()) {
-		responseWithJsonError(w, "Refresh token expired", 401)
+		ResponseWithJsonError(w, "Refresh token expired", 401)
 		return
 	}
 	if rtdb.RevokedAt.Valid {
-		responseWithJsonError(w, "Refresh token revoked", 401)
+		ResponseWithJsonError(w, "Refresh token revoked", 401)
 		return
 	}
 	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
-	responseWithJson(map[string]string{"token": token}, w, http.StatusOK)
+	ResponseWithJson(map[string]string{"token": token}, w, http.StatusOK)
 }
 
 func (cfg *apiConfig) requireBearerToken(next func(w http.ResponseWriter, r *http.Request, token string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := auth.GetBearerToken(r.Header)
 		if err != nil {
-			responseWithJsonError(w, err.Error(), 401)
+			ResponseWithJsonError(w, err.Error(), 401)
 			return
 		}
 		if token == "" {
-			responseWithJsonError(w, "bearer token is required", 400)
+			ResponseWithJsonError(w, "bearer token is required", 400)
 			return
 		}
 		next(w, r, token)
@@ -114,14 +114,14 @@ func (cfg *apiConfig) requireValidJWTToken(next func(w http.ResponseWriter, r *h
 	return cfg.requireBearerToken(func(w http.ResponseWriter, r *http.Request, token string) {
 		userId, err := auth.ValidateJWT(token, cfg.jwtSecret) // Validate JWT token
 		if err != nil {
-			responseWithJsonError(w, err.Error(), http.StatusUnauthorized)
+			ResponseWithJsonError(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
 		// Retrieve user from database using the userId extracted from the token
 		user, err := cfg.db.GetUserById(r.Context(), userId)
 		if err != nil {
-			responseWithJsonError(w, "User not found", http.StatusUnauthorized)
+			ResponseWithJsonError(w, "User not found", http.StatusUnauthorized)
 			return
 		}
 		// Call the next function with token and user
@@ -131,7 +131,7 @@ func (cfg *apiConfig) requireValidJWTToken(next func(w http.ResponseWriter, r *h
 func (cfg *apiConfig) handleRevokeToken(w http.ResponseWriter, r *http.Request, refreshToken string) {
 	err := cfg.db.RevokeRefreshToken(r.Context(), refreshToken)
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
 	w.WriteHeader(204)
@@ -140,15 +140,15 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request, e
 
 	_, err := cfg.db.GetUserByEmail(r.Context(), email)
 	if err == nil {
-		responseWithJsonError(w, "User already exists", 400)
+		ResponseWithJsonError(w, "User already exists", 400)
 		return
 	}
 	if !auth.IsEmailValid(email) {
-		responseWithJsonError(w, "Invalid email", 400)
+		ResponseWithJsonError(w, "Invalid email", 400)
 		return
 	}
 	if err := auth.CheckPasswordStrength(password, cfg.minPasswordEntropy); err != nil {
-		responseWithJsonError(w, err.Error(), 400)
+		ResponseWithJsonError(w, err.Error(), 400)
 		return
 	}
 	hashedPasswd, err := auth.HashPassword(password)
@@ -158,10 +158,10 @@ func (cfg *apiConfig) handleCreateUser(w http.ResponseWriter, r *http.Request, e
 		HashedPassword: hashedPasswd,
 	})
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
-	responseWithJson(mapToJson(&user, "", ""), w, http.StatusCreated)
+	ResponseWithJson(mapToJson(&user, "", ""), w, http.StatusCreated)
 }
 
 type UserResponseLogin struct {
@@ -191,11 +191,11 @@ func (cfg *apiConfig) handleUpdateEmail(w http.ResponseWriter, r *http.Request, 
 	var userReq UserReqBody
 	json.NewDecoder(r.Body).Decode(&userReq)
 	if userReq.Email == "" {
-		responseWithJsonError(w, "Email is required", 400)
+		ResponseWithJsonError(w, "Email is required", 400)
 		return
 	}
 	if !auth.IsEmailValid(userReq.Email) {
-		responseWithJsonError(w, "Invalid email", 400)
+		ResponseWithJsonError(w, "Invalid email", 400)
 		return
 	}
 	updatedUser, err := cfg.db.UpdateUserEmail(r.Context(), database.UpdateUserEmailParams{
@@ -204,14 +204,14 @@ func (cfg *apiConfig) handleUpdateEmail(w http.ResponseWriter, r *http.Request, 
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			responseWithJsonError(w, "Email already exists", 403)
+			ResponseWithJsonError(w, "Email already exists", 403)
 			return
 		}
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
 
-	responseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
+	ResponseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
 }
 
 func (cfg *apiConfig) handleUpdatePassword(w http.ResponseWriter, r *http.Request, token string, user *database.User) {
@@ -221,17 +221,17 @@ func (cfg *apiConfig) handleUpdatePassword(w http.ResponseWriter, r *http.Reques
 	var userReq UserReqBody
 	json.NewDecoder(r.Body).Decode(&userReq)
 	if userReq.Password == "" {
-		responseWithJsonError(w, "password is required", 400)
+		ResponseWithJsonError(w, "password is required", 400)
 		return
 	}
 	if err := auth.CheckPasswordStrength(userReq.Password, cfg.minPasswordEntropy); err != nil {
-		responseWithJsonError(w, err.Error(), 400)
+		ResponseWithJsonError(w, err.Error(), 400)
 		return
 	}
 
 	hashesPassword, err := auth.HashPassword(userReq.Password)
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
 
@@ -240,9 +240,9 @@ func (cfg *apiConfig) handleUpdatePassword(w http.ResponseWriter, r *http.Reques
 		ID:             user.ID,
 	})
 	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
+		ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
 
-	responseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
+	ResponseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
 }
