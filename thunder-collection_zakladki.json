@@ -1,0 +1,177 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "zakladki",
+    "collectionId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+    "dateExported": "2024-09-28T12:24:09.179Z",
+    "version": "1.2",
+    "folders": [
+        {
+            "_id": "26089239-978f-4acc-b0da-b4c1d9fb6c3f",
+            "name": "user things",
+            "containerId": "",
+            "created": "2024-09-27T19:57:19.487Z",
+            "sortNum": 10000
+        },
+        {
+            "_id": "dc03bd96-75d9-44d2-b925-fac6088d250f",
+            "name": "test_update_user",
+            "containerId": "26089239-978f-4acc-b0da-b4c1d9fb6c3f",
+            "created": "2024-09-27T21:33:26.636Z",
+            "sortNum": 20000
+        }
+    ],
+    "requests": [
+        {
+            "_id": "65f8e269-21f9-4d76-a0c1-6717bfc31c23",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "dc03bd96-75d9-44d2-b925-fac6088d250f",
+            "name": "create_test@email.com",
+            "url": "http://localhost:8080/api/users",
+            "method": "POST",
+            "sortNum": 5000,
+            "created": "2024-09-27T19:46:42.034Z",
+            "modified": "2024-09-27T21:26:57.141Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"email\": \"sebasadowy3@gmail.com\",\n  \"password\":\"pa$$$word$$$1111!\" \n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "a978d559-6ff1-44ca-88a0-aaa5e996db5c",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "dc03bd96-75d9-44d2-b925-fac6088d250f",
+            "name": "create_test2@email.com",
+            "url": "http://localhost:8080/api/users",
+            "method": "POST",
+            "sortNum": 7500,
+            "created": "2024-09-27T21:37:25.528Z",
+            "modified": "2024-09-27T21:37:25.528Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"email\": \"sebasadowy3@gmail.com\",\n  \"password\":\"pa$$$word$$$1111!\" \n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "25a08d07-922c-4960-8eff-9c029947be0d",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "dc03bd96-75d9-44d2-b925-fac6088d250f",
+            "name": "login user",
+            "url": "http://localhost:8080/api/login",
+            "method": "POST",
+            "sortNum": 8750,
+            "created": "2024-09-27T19:53:55.048Z",
+            "modified": "2024-09-27T21:42:31.913Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"email\": \"test@email.com\",\n  \"password\": \"pa$$$word$$$1111!\"\n}",
+                "form": []
+            },
+            "postReq": {
+                "inlineScripts": [
+                    {
+                        "script": [
+                            "console.log(\"post request scriptin\");",
+                            "",
+                            "var json = tc.response.json;",
+                            "tc.setVar(\"token\", json.token);",
+                            "",
+                            "console.log(\"token: \", tc.getVar(\"token\"));"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "_id": "cd5fc6cf-2d94-4340-8e07-cc9d4e02a138",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "",
+            "name": "healthz",
+            "url": "http://localhost:8080/api/healthz",
+            "method": "GET",
+            "sortNum": 10000,
+            "created": "2024-09-27T19:34:58.175Z",
+            "modified": "2024-09-27T19:35:17.509Z",
+            "headers": []
+        },
+        {
+            "_id": "96c2429a-96e1-47cb-916b-4eb11bd499a4",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "dc03bd96-75d9-44d2-b925-fac6088d250f",
+            "name": "update user",
+            "url": "http://localhost:8080/api/users",
+            "method": "PUT",
+            "sortNum": 10000,
+            "created": "2024-09-27T20:58:17.119Z",
+            "modified": "2024-09-27T21:27:25.111Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"email\":\"sebasadowy@gmail.com\",\n  \"password\": \"nowe haslo\"\n}",
+                "form": []
+            },
+            "auth": {
+                "type": "bearer",
+                "bearer": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6YWtsYWRraSIsImlhdCI6MTcyNzQ3MjQyMywiZXhwIjoxNzI3NDc2MDIzLCJzdWIiOiIyYjkyMWQ1NS1mNjU0LTQ4YmItOWJjZC05ZDM3NDc3NWVjZjUifQ.TB76PC8aTuSDwid9tt_ZXVGe5i6c9sfh8StXMvLpYpg"
+            }
+        },
+        {
+            "_id": "f1e9bf27-cc62-42a6-9a27-af00c1b54d01",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "26089239-978f-4acc-b0da-b4c1d9fb6c3f",
+            "name": "login user Copy",
+            "url": "http://localhost:8080/api/login",
+            "method": "POST",
+            "sortNum": 10000,
+            "created": "2024-09-27T21:38:44.845Z",
+            "modified": "2024-09-27T21:38:44.845Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"email\": \"sebasadowy3@gmail.com\",\n  \"password\": \"pa$$$word$$$1111!\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "1dbfcac6-1acf-4fb7-8a99-1abe4a0e5c9f",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "",
+            "name": "metrics",
+            "url": "http://localhost:8080/api/metrics",
+            "method": "GET",
+            "sortNum": 20000,
+            "created": "2024-09-27T19:35:53.407Z",
+            "modified": "2024-09-27T19:36:26.405Z",
+            "headers": []
+        },
+        {
+            "_id": "c144b5dc-c8b6-42cd-95a9-2d644ecb2074",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "",
+            "name": "admin metrics",
+            "url": "http://localhost:8080/admin/metrics",
+            "method": "GET",
+            "sortNum": 30000,
+            "created": "2024-09-27T19:37:06.131Z",
+            "modified": "2024-09-27T19:37:20.964Z",
+            "headers": []
+        },
+        {
+            "_id": "e84553f6-d6fb-4849-9572-87493e678b1f",
+            "colId": "a4b1199a-9ffc-471e-8abf-6290854b5694",
+            "containerId": "",
+            "name": "reset",
+            "url": "http://localhost:8080/admin/reset",
+            "method": "POST",
+            "sortNum": 50000,
+            "created": "2024-09-27T19:40:16.958Z",
+            "modified": "2024-09-27T19:45:13.207Z",
+            "headers": []
+        }
+    ],
+    "ref": "ibj9PzfpKe24bjgXKA7362EUYBeWKzIqkR7ngVd7Cvhd8A8XHTZcTRtTS-38fl7r9_4azqsMLyu-PUU4upr-8A"
+}
