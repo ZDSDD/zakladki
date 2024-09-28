@@ -6,6 +6,14 @@ FROM
 WHERE
     token = $1;
 
+-- name: GetRefreshTokenForUser :one
+SELECT
+    *
+FROM
+    refresh_tokens
+WHERE
+    user_id = $1;
+
 -- name: CreateRefreshToken :one
 INSERT INTO
     refresh_tokens (
@@ -30,3 +38,15 @@ WHERE
 -- name: PurgeRefreshTokens :exec
 DELETE FROM
     refresh_tokens;
+
+-- name: PurgeRevokedToknes :exec
+DELETE FROM
+    refresh_tokens
+WHERE
+    revoked_at IS NOT NULL;
+
+-- name: UpdateExpiresAtRefreshToken :one
+UPDATE refresh_tokens
+SET updated_at=NOW(),
+    expires_at=$1
+RETURNING *;

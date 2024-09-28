@@ -68,6 +68,29 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 	return i, err
 }
 
+const getRefreshTokenForUser = `-- name: GetRefreshTokenForUser :one
+SELECT
+    token, created_at, updated_at, user_id, expires_at, revoked_at
+FROM
+    refresh_tokens
+WHERE
+    user_id = $1
+`
+
+func (q *Queries) GetRefreshTokenForUser(ctx context.Context, userID uuid.UUID) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshTokenForUser, userID)
+	var i RefreshToken
+	err := row.Scan(
+		&i.Token,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
 const purgeRefreshTokens = `-- name: PurgeRefreshTokens :exec
 DELETE FROM
     refresh_tokens
@@ -75,6 +98,18 @@ DELETE FROM
 
 func (q *Queries) PurgeRefreshTokens(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, purgeRefreshTokens)
+	return err
+}
+
+const purgeRevokedToknes = `-- name: PurgeRevokedToknes :exec
+DELETE FROM
+    refresh_tokens
+WHERE
+    revoked_at IS NOT NULL
+`
+
+func (q *Queries) PurgeRevokedToknes(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, purgeRevokedToknes)
 	return err
 }
 
@@ -91,4 +126,25 @@ WHERE
 func (q *Queries) RevokeRefreshToken(ctx context.Context, token string) error {
 	_, err := q.db.ExecContext(ctx, revokeRefreshToken, token)
 	return err
+}
+
+const updateExpiresAtRefreshToken = `-- name: UpdateExpiresAtRefreshToken :one
+UPDATE refresh_tokens
+SET updated_at=NOW(),
+    expires_at=$1
+RETURNING token, created_at, updated_at, user_id, expires_at, revoked_at
+`
+
+func (q *Queries) UpdateExpiresAtRefreshToken(ctx context.Context, expiresAt time.Time) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, updateExpiresAtRefreshToken, expiresAt)
+	var i RefreshToken
+	err := row.Scan(
+		&i.Token,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+	)
+	return i, err
 }

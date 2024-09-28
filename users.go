@@ -39,23 +39,35 @@ func (cfg *apiConfig) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
-	refreshToken, err := auth.MakeRefreshToken()
-	if err != nil {
-		responseWithJsonError(w, err.Error(), 500)
-		return
+
+	var refreshToken database.RefreshToken
+	_, err = cfg.db.GetRefreshTokenForUser(r.Context(), user.ID)
+	if err == nil { //There is already refresh token for this user in the database.
+		refreshToken, err = cfg.db.UpdateExpiresAtRefreshToken(r.Context(), time.Now().Add(time.Hour*24*60))
+		if err != nil {
+			responseWithJsonError(w, err.Error(), 500)
+			return
+		}
+
+	} else {
+		refreshTokenID, err := auth.MakeRefreshToken()
+		if err != nil {
+			responseWithJsonError(w, err.Error(), 500)
+			return
+		}
+		refreshToken, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+			Token:     refreshTokenID,
+			UserID:    user.ID,
+			ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
+		})
 	}
-	_, err = cfg.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
-		Token:     refreshToken,
-		UserID:    user.ID,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
-	})
 
 	if err != nil {
 		responseWithJsonError(w, err.Error(), 500)
 		return
 	}
 
-	responseWithJson(mapToJson(&user, token, refreshToken), w, http.StatusOK)
+	responseWithJson(mapToJson(&user, token, refreshToken.Token), w, http.StatusOK)
 }
 
 func (cfg *apiConfig) handleRefreshToken(w http.ResponseWriter, r *http.Request, refreshToken string, user *database.User) {
