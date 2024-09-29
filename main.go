@@ -53,8 +53,8 @@ func main() {
 	apiRouter.Use(cfg.middlewareMetricsInc)
 
 	// User-related routes
-	userService := users.NewUserService(dbQueries, cfg.jwtSecret, cfg.minPasswordEntropy)
-	apiRouter.Mount("/users", userService.UsersRouter())
+	userHandler := users.NewUserHandler(dbQueries, cfg.jwtSecret, cfg.minPasswordEntropy)
+	apiRouter.Mount("/users", userHandler.UsersRouter())
 
 	// Health check and metrics routes
 	apiRouter.Get("/healthz", handleHealthz)
@@ -64,18 +64,22 @@ func main() {
 	r.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 
 	// Admin-related routes
-	r.Mount("/admin", cfg.adminRouter())
+	r.Mount("/admin", cfg.adminRouter(userHandler))
 
 	log.Printf("Server running successfully on port: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }
-func (cfg *apiConfig) adminRouter() http.Handler {
+
+func (cfg *apiConfig) adminRouter(uh *users.UsersHandler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(cfg.middlewareMetricsInc)
+	// r.Use(uh.RequireValidJWTToken) // Move JWT validation before AdminOnly
+	r.Use(uh.AdminOnly)
 	r.Post("/reset", cfg.handleReset)
 	r.Get("/metrics", cfg.handleAdminMetrics)
 	return r
 }
+
 func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)

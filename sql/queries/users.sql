@@ -66,3 +66,13 @@ SET
 WHERE
     id = $2
 RETURNING *;
+
+-- name: UpdateUserRole :one
+UPDATE
+    users
+SET
+    role = $1,
+    updated_at = NOW()
+WHERE
+    id = $2
+RETURNING *;

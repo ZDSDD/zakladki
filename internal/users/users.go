@@ -1,7 +1,10 @@
 package users
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -13,39 +16,39 @@ import (
 	"github.com/zdsdd/zakladki/internal/jsonUtils"
 )
 
-type UserService struct {
+type UsersHandler struct {
 	db                 *database.Queries
 	jwtSecret          string
 	minPasswordEntropy float64
 }
 
-func NewUserService(db *database.Queries, jwtSecret string, minPasswordEntropy float64) *UserService {
-	return &UserService{
+func NewUserHandler(db *database.Queries, jwtSecret string, minPasswordEntropy float64) *UsersHandler {
+	return &UsersHandler{
 		db:                 db,
 		jwtSecret:          jwtSecret,
 		minPasswordEntropy: minPasswordEntropy,
 	}
 }
 
-func (us *UserService) UsersRouter() http.Handler {
+func (uh *UsersHandler) UsersRouter() http.Handler {
 	// User-related routes
 	r := chi.NewRouter()
 
-	r.Post("/", us.requireLoginAndPassword(us.handleCreateUser))
-	r.Post("/login", us.requireLoginAndPassword(us.handleLogin))
+	r.Post("/", uh.requireLoginAndPassword(uh.handleCreateUser))
+	r.Post("/login", uh.requireLoginAndPassword(uh.handleLogin))
 
-	// mux.HandleFunc("PUT /api/users", us.requireBearerToken(us.handleUpdateUser))
-	r.Put("/password", us.requireValidJWTToken(us.handleUpdatePassword))
-	r.Put("/email", us.requireValidJWTToken(us.handleUpdateEmail))
+	// mux.HandleFunc("PUT /api/users", uh.requireBearerToken(uh.handleUpdateUser))
+	r.Put("/password", uh.RequireValidJWTToken(http.HandlerFunc(uh.handleUpdatePassword)))
+	r.Put("/email", uh.RequireValidJWTToken(http.HandlerFunc(uh.handleUpdateEmail)))
 
 	// JWT-related routers
-	r.Post("/refresh", us.requireValidJWTToken(us.handleRefreshToken))
-	r.Post("/revoke", us.requireBearerToken(us.handleRevokeToken))
+	r.Post("/refresh", uh.RequireValidJWTToken(http.HandlerFunc(uh.handleRefreshToken)))
+	r.Post("/revoke", uh.requireBearerToken(http.HandlerFunc(uh.handleRevokeToken)))
 	return r
 }
 
-func (us *UserService) handleLogin(w http.ResponseWriter, r *http.Request, email, password string) {
-	user, err := us.db.GetUserByEmail(r.Context(), email)
+func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request, email, password string) {
+	user, err := uh.db.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
 		return
@@ -56,12 +59,12 @@ func (us *UserService) handleLogin(w http.ResponseWriter, r *http.Request, email
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, us.jwtSecret, time.Hour)
+	token, err := auth.MakeJWT(user.ID, uh.jwtSecret, time.Hour)
 
 	var refreshToken database.RefreshToken
-	_, err = us.db.GetRefreshTokenForUser(r.Context(), user.ID)
+	_, err = uh.db.GetRefreshTokenForUser(r.Context(), user.ID)
 	if err == nil { //There is already refresh token for this user in the database.
-		refreshToken, err = us.db.UpdateExpiresAtRefreshToken(r.Context(), database.UpdateExpiresAtRefreshTokenParams{
+		refreshToken, err = uh.db.UpdateExpiresAtRefreshToken(r.Context(), database.UpdateExpiresAtRefreshTokenParams{
 			ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
 			UserID:    user.ID,
 		})
@@ -76,7 +79,7 @@ func (us *UserService) handleLogin(w http.ResponseWriter, r *http.Request, email
 			jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
 			return
 		}
-		refreshToken, err = us.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
+		refreshToken, err = uh.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 			Token:     refreshTokenID,
 			UserID:    user.ID,
 			ExpiresAt: time.Now().Add(time.Hour * 24 * 60),
@@ -85,7 +88,7 @@ func (us *UserService) handleLogin(w http.ResponseWriter, r *http.Request, email
 	jsonUtils.ResponseWithJson(mapToJson(&user, token, refreshToken.Token), w, http.StatusOK)
 }
 
-func (us *UserService) requireLoginAndPassword(next func(w http.ResponseWriter, r *http.Request, email, password string)) http.HandlerFunc {
+func (uh *UsersHandler) requireLoginAndPassword(next func(w http.ResponseWriter, r *http.Request, email, password string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type UserReqBody struct {
 			Email    string `json:"email"`
@@ -105,8 +108,9 @@ func (us *UserService) requireLoginAndPassword(next func(w http.ResponseWriter, 
 	}
 }
 
-func (us *UserService) handleRefreshToken(w http.ResponseWriter, r *http.Request, refreshToken string, user *database.User) {
-	rtdb, err := us.db.GetRefreshToken(r.Context(), refreshToken)
+func (uh *UsersHandler) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := GetBearerToken(r)
+	rtdb, err := uh.db.GetRefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
 		return
@@ -119,7 +123,17 @@ func (us *UserService) handleRefreshToken(w http.ResponseWriter, r *http.Request
 		jsonUtils.ResponseWithJsonError(w, "Refresh token revoked", 401)
 		return
 	}
-	token, err := auth.MakeJWT(user.ID, us.jwtSecret, time.Hour)
+	userId, err := GetUserIDFromContext(r)
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		return
+	}
+	if rtdb.UserID != userId {
+		jsonUtils.ResponseWithJsonError(w, "Refresh token does not belong to the user", 401)
+		return
+	}
+	token, err := auth.MakeJWT(userId, uh.jwtSecret, time.Hour)
+
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
 		return
@@ -127,7 +141,12 @@ func (us *UserService) handleRefreshToken(w http.ResponseWriter, r *http.Request
 	jsonUtils.ResponseWithJson(map[string]string{"token": token}, w, http.StatusOK)
 }
 
-func (us *UserService) requireBearerToken(next func(w http.ResponseWriter, r *http.Request, token string)) http.HandlerFunc {
+type contextKey string
+
+const TokenKey contextKey = "auth.token"
+const UserIDKey contextKey = "auth.userId"
+
+func (uh *UsersHandler) requireBearerToken(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := auth.GetBearerToken(r.Header)
 		if err != nil {
@@ -138,40 +157,78 @@ func (us *UserService) requireBearerToken(next func(w http.ResponseWriter, r *ht
 			jsonUtils.ResponseWithJsonError(w, "bearer token is required", 400)
 			return
 		}
-		next(w, r, token)
+		ctx := context.WithValue(r.Context(), TokenKey, token)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 
-// RequireBearerToken wrapper with JWT token validation
-func (us *UserService) requireValidJWTToken(next func(w http.ResponseWriter, r *http.Request, token string, user *database.User)) http.HandlerFunc {
-	return us.requireBearerToken(func(w http.ResponseWriter, r *http.Request, token string) {
-		userId, err := auth.ValidateJWT(token, us.jwtSecret) // Validate JWT token
+const PermissionsKey contextKey = "acl.permission"
+const RoleKey contextKey = "acl.role"
+
+func (uh *UsersHandler) RequireValidJWTToken(next http.Handler) http.HandlerFunc {
+	return uh.requireBearerToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token, err := GetBearerToken(r)
 		if err != nil {
-			jsonUtils.ResponseWithJsonError(w, err.Error(), http.StatusUnauthorized)
+			log.Printf("Error getting bearer token: %v", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Retrieve user from database using the userId extracted from the token
-		user, err := us.db.GetUserById(r.Context(), userId)
+		userId, err := auth.ValidateJWT(token, uh.jwtSecret)
 		if err != nil {
-			jsonUtils.ResponseWithJsonError(w, "User not found", http.StatusUnauthorized)
+			log.Printf("Error validating JWT: %v", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		// Call the next function with token and user
-		next(w, r, token, &user)
-	})
+
+		user, err := uh.db.GetUserById(r.Context(), userId)
+		if err != nil {
+			log.Printf("Error getting user: %v", err)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), UserIDKey, userId)
+		ctx = context.WithValue(ctx, RoleKey, Role(user.Role))
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	}))
 }
-func (us *UserService) handleRevokeToken(w http.ResponseWriter, r *http.Request, refreshToken string) {
-	err := us.db.RevokeRefreshToken(r.Context(), refreshToken)
+
+// Helper function to get user ID from context
+func GetUserIDFromContext(r *http.Request) (uuid.UUID, error) {
+	userId, ok := r.Context().Value(UserIDKey).(uuid.UUID)
+	if !ok || userId == uuid.Nil {
+		return uuid.Nil, fmt.Errorf("user ID not found in context")
+	}
+	return userId, nil
+}
+
+// Helper function to get user ID from context
+func GetBearerToken(r *http.Request) (string, error) {
+	userId, ok := r.Context().Value(TokenKey).(string)
+	if !ok || userId == "" {
+		return "", fmt.Errorf("JWT Token not found in context")
+	}
+	return userId, nil
+}
+
+func (uh *UsersHandler) handleRevokeToken(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := GetBearerToken(r)
 	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		return
+	}
+	if err = uh.db.RevokeRefreshToken(r.Context(), refreshToken); err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
 	w.WriteHeader(204)
 }
-func (us *UserService) handleCreateUser(w http.ResponseWriter, r *http.Request, email, password string) {
 
-	_, err := us.db.GetUserByEmail(r.Context(), email)
+func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request, email, password string) {
+
+	_, err := uh.db.GetUserByEmail(r.Context(), email)
 	if err == nil {
 		jsonUtils.ResponseWithJsonError(w, "User already exists", 400)
 		return
@@ -180,13 +237,13 @@ func (us *UserService) handleCreateUser(w http.ResponseWriter, r *http.Request, 
 		jsonUtils.ResponseWithJsonError(w, "Invalid email", 400)
 		return
 	}
-	if err := auth.CheckPasswordStrength(password, us.minPasswordEntropy); err != nil {
+	if err := auth.CheckPasswordStrength(password, uh.minPasswordEntropy); err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 400)
 		return
 	}
 	hashedPasswd, err := auth.HashPassword(password)
 
-	user, err := us.db.CreateUser(r.Context(), database.CreateUserParams{
+	user, err := uh.db.CreateUser(r.Context(), database.CreateUserParams{
 		Email:          email,
 		HashedPassword: hashedPasswd,
 	})
@@ -217,7 +274,7 @@ func mapToJson(du *database.User, token string, refreshToken string) UserRespons
 	}
 }
 
-func (us *UserService) handleUpdateEmail(w http.ResponseWriter, r *http.Request, token string, user *database.User) {
+func (uh *UsersHandler) handleUpdateEmail(w http.ResponseWriter, r *http.Request) {
 	type UserReqBody struct {
 		Email string `json:"email"`
 	}
@@ -231,9 +288,15 @@ func (us *UserService) handleUpdateEmail(w http.ResponseWriter, r *http.Request,
 		jsonUtils.ResponseWithJsonError(w, "Invalid email", 400)
 		return
 	}
-	updatedUser, err := us.db.UpdateUserEmail(r.Context(), database.UpdateUserEmailParams{
+	userId, err := GetUserIDFromContext(r)
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		return
+	}
+
+	updatedUser, err := uh.db.UpdateUserEmail(r.Context(), database.UpdateUserEmailParams{
 		Email: userReq.Email,
-		ID:    user.ID,
+		ID:    userId,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
@@ -247,7 +310,7 @@ func (us *UserService) handleUpdateEmail(w http.ResponseWriter, r *http.Request,
 	jsonUtils.ResponseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
 }
 
-func (us *UserService) handleUpdatePassword(w http.ResponseWriter, r *http.Request, token string, user *database.User) {
+func (uh *UsersHandler) handleUpdatePassword(w http.ResponseWriter, r *http.Request) {
 	type UserReqBody struct {
 		Password string `json:"password"`
 	}
@@ -257,7 +320,7 @@ func (us *UserService) handleUpdatePassword(w http.ResponseWriter, r *http.Reque
 		jsonUtils.ResponseWithJsonError(w, "password is required", 400)
 		return
 	}
-	if err := auth.CheckPasswordStrength(userReq.Password, us.minPasswordEntropy); err != nil {
+	if err := auth.CheckPasswordStrength(userReq.Password, uh.minPasswordEntropy); err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 400)
 		return
 	}
@@ -268,9 +331,15 @@ func (us *UserService) handleUpdatePassword(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	updatedUser, err := us.db.UpdateUserPassword(r.Context(), database.UpdateUserPasswordParams{
+	userID, err := GetUserIDFromContext(r)
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		return
+	}
+
+	updatedUser, err := uh.db.UpdateUserPassword(r.Context(), database.UpdateUserPasswordParams{
 		HashedPassword: hashesPassword,
-		ID:             user.ID,
+		ID:             userID,
 	})
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
@@ -278,4 +347,41 @@ func (us *UserService) handleUpdatePassword(w http.ResponseWriter, r *http.Reque
 	}
 
 	jsonUtils.ResponseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
+}
+
+func (uh *UsersHandler) RequirePermission(requiredPermission Permissions) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			userRole, ok := ctx.Value(RoleKey).(Role)
+			if !ok || !userRole.HasPermission(requiredPermission) {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func (uh *UsersHandler) AdminOnly(next http.Handler) http.Handler {
+	return uh.RequireValidJWTToken(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		role, ok := ctx.Value(RoleKey).(Role)
+		if !ok {
+			log.Printf("Role not found in context")
+			log.Printf("Context: %v", ctx)
+			log.Printf("Role key: %v", RoleKey)
+			log.Printf("Role: %v", role)
+			log.Printf("Role value: %v", ctx.Value(RoleKey))
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		log.Printf("User role: %v", role)
+		if !role.HasPermission(CanView | CanEdit | CanDelete | CanCreate) {
+			log.Printf("User is not an admin (role: %v)", role)
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}))
 }

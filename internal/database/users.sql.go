@@ -27,7 +27,7 @@ VALUES
         NOW(),
         $1,
         $2
-    ) RETURNING id, email, hashed_password, created_at, updated_at
+    ) RETURNING id, email, hashed_password, created_at, updated_at, role
 `
 
 type CreateUserParams struct {
@@ -44,13 +44,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.HashedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT
-    users.id, users.email, users.hashed_password, users.created_at, users.updated_at
+    users.id, users.email, users.hashed_password, users.created_at, users.updated_at, users.role
 FROM
     users
 WHERE
@@ -66,13 +67,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.HashedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
 
 const getUserById = `-- name: GetUserById :one
 SELECT
-    users.id, users.email, users.hashed_password, users.created_at, users.updated_at
+    users.id, users.email, users.hashed_password, users.created_at, users.updated_at, users.role
 FROM
     users
 WHERE
@@ -88,6 +90,7 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.HashedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
@@ -111,7 +114,7 @@ SET
     updated_at = NOW()
 WHERE
     id = $3
-RETURNING id, email, hashed_password, created_at, updated_at
+RETURNING id, email, hashed_password, created_at, updated_at, role
 `
 
 type UpdateUserParams struct {
@@ -129,6 +132,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.HashedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
@@ -141,7 +145,7 @@ SET
     updated_at = NOW()
 WHERE
     id = $2
-RETURNING id, email, hashed_password, created_at, updated_at
+RETURNING id, email, hashed_password, created_at, updated_at, role
 `
 
 type UpdateUserEmailParams struct {
@@ -158,6 +162,7 @@ func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams
 		&i.HashedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
@@ -170,7 +175,7 @@ SET
     updated_at = NOW()
 WHERE
     id = $2
-RETURNING id, email, hashed_password, created_at, updated_at
+RETURNING id, email, hashed_password, created_at, updated_at, role
 `
 
 type UpdateUserPasswordParams struct {
@@ -187,6 +192,37 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 		&i.HashedPassword,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Role,
+	)
+	return i, err
+}
+
+const updateUserRole = `-- name: UpdateUserRole :one
+UPDATE
+    users
+SET
+    role = $1,
+    updated_at = NOW()
+WHERE
+    id = $2
+RETURNING id, email, hashed_password, created_at, updated_at, role
+`
+
+type UpdateUserRoleParams struct {
+	Role int32
+	ID   uuid.UUID
+}
+
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserRole, arg.Role, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.HashedPassword,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Role,
 	)
 	return i, err
 }
