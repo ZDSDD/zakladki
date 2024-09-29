@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 	"github.com/zdsdd/zakladki/internal/auth"
 	"github.com/zdsdd/zakladki/internal/database"
@@ -26,19 +27,21 @@ func NewUserService(db *database.Queries, jwtSecret string, minPasswordEntropy f
 	}
 }
 
-func (us *UserService) RegisterRoutes(mux *http.ServeMux) {
+func (us *UserService) UsersRouter() http.Handler {
 	// User-related routes
-	mux.HandleFunc("POST /api/users", us.requireLoginAndPassword(us.handleCreateUser))
-	mux.HandleFunc("POST /api/login", us.requireLoginAndPassword(us.handleLogin))
+	r := chi.NewRouter()
+
+	r.Post("/", us.requireLoginAndPassword(us.handleCreateUser))
+	r.Post("/login", us.requireLoginAndPassword(us.handleLogin))
 
 	// mux.HandleFunc("PUT /api/users", us.requireBearerToken(us.handleUpdateUser))
-	mux.HandleFunc("PUT /api/users/password", us.requireValidJWTToken(us.handleUpdatePassword))
-	mux.HandleFunc("PUT /api/users/email", us.requireValidJWTToken(us.handleUpdateEmail))
+	r.Put("/password", us.requireValidJWTToken(us.handleUpdatePassword))
+	r.Put("/email", us.requireValidJWTToken(us.handleUpdateEmail))
 
 	// JWT-related routers
-	mux.HandleFunc("POST /api/refresh", us.requireValidJWTToken(us.handleRefreshToken))
-	mux.HandleFunc("POST /api/revoke", us.requireBearerToken(us.handleRevokeToken))
-
+	r.Post("/refresh", us.requireValidJWTToken(us.handleRefreshToken))
+	r.Post("/revoke", us.requireBearerToken(us.handleRevokeToken))
+	return r
 }
 
 func (us *UserService) handleLogin(w http.ResponseWriter, r *http.Request, email, password string) {
