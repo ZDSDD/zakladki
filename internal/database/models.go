@@ -11,6 +11,29 @@ import (
 	"github.com/google/uuid"
 )
 
+type Bookmark struct {
+	ID              int32
+	Name            string
+	AvailableAmount int32
+	Size            sql.NullString
+	Price           string
+	Material        sql.NullString
+	CategoryID      int32
+	Description     sql.NullString
+	ImageUrl        sql.NullString
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	IsActive        bool
+}
+
+type BookmarkCategory struct {
+	ID        int32
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	IsActive  bool
+}
+
 type RefreshToken struct {
 	Token     string
 	CreatedAt time.Time
@@ -27,27 +50,4 @@ type User struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Role           int32
-}
-
-type ZakladkaCategory struct {
-	ID        int32
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	IsActive  bool
-}
-
-type Zakladki struct {
-	ID              int32
-	Name            string
-	AvailableAmount int32
-	Size            sql.NullString
-	Price           string
-	Material        sql.NullString
-	CategoryID      int32
-	Description     sql.NullString
-	ImageUrl        sql.NullString
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	IsActive        bool
 }

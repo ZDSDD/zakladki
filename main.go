@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/zdsdd/zakladki/internal/bookmarks"
 	"github.com/zdsdd/zakladki/internal/database"
 	"github.com/zdsdd/zakladki/internal/users"
 )
@@ -66,6 +67,9 @@ func main() {
 	// Admin-related routes
 	r.Mount("/admin", cfg.adminRouter(userHandler))
 
+	// bookmarks related routes
+	bh := bookmarks.NewBookmarksHandler(dbQueries)
+	r.Mount("/bookmarks", bh.BookmarksRouter())
 	log.Printf("Server running successfully on port: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }

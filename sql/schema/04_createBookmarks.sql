@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE zakladka_category(
+CREATE TABLE bookmark_category(
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE zakladka_category(
     is_active BOOLEAN DEFAULT TRUE NOT NULL
 );
 
-CREATE TABLE zakladki (
+CREATE TABLE bookmarks (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     available_amount INTEGER NOT NULL,
@@ -22,12 +22,12 @@ CREATE TABLE zakladki (
     is_active BOOLEAN DEFAULT TRUE NOT NULL,
     CONSTRAINT check_price CHECK (price >= 0),
     CONSTRAINT check_available_amount CHECK (available_amount >= 0),
-    CONSTRAINT fk_zakladka_category FOREIGN KEY (category_id) REFERENCES zakladka_category(id) ON DELETE CASCADE,
+    CONSTRAINT fk_bookmark_category FOREIGN KEY (category_id) REFERENCES bookmark_category(id) ON DELETE CASCADE,
     CONSTRAINT unique_name UNIQUE (name),
     CONSTRAINT unique_image_url UNIQUE (image_url)
 );
 
 -- +goose Down
-drop table zakladki;
+drop table bookmarks;
 
-drop table zakladka_category;
+drop table bookmark_category;
