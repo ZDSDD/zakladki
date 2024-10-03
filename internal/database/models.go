@@ -15,12 +15,12 @@ type Bookmark struct {
 	ID              int32
 	Name            string
 	AvailableAmount int32
-	Size            sql.NullString
+	Size            string
 	Price           string
-	Material        sql.NullString
+	Material        string
 	CategoryID      int32
-	Description     sql.NullString
-	ImageUrl        sql.NullString
+	Description     string
+	ImageUrl        string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	IsActive        bool

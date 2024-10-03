@@ -7,28 +7,56 @@ package database
 
 import (
 	"context"
+	"time"
 )
 
-const getBookmarks = `-- name: GetBookmarks :many
+const getActiveBookmarks = `-- name: GetActiveBookmarks :many
 SELECT
-    id, name, available_amount, size, price, material, category_id, description, image_url, created_at, updated_at, is_active
+    b.id,
+    b.name,
+    available_amount,
+    size,
+    price,
+    material,
+    c.name as category,
+    b.description,
+    image_url,
+    b.created_at,
+    b.updated_at,
+    b.is_active
 FROM
-    bookmarks
+    bookmarks b
+    JOIN bookmark_category c ON b.category_id = c.id
 WHERE
-    is_active = TRUE
+    b.is_active = TRUE
 ORDER BY
-    created_at DESC
+    b.created_at DESC
 `
 
-func (q *Queries) GetBookmarks(ctx context.Context) ([]Bookmark, error) {
-	rows, err := q.db.QueryContext(ctx, getBookmarks)
+type GetActiveBookmarksRow struct {
+	ID              int32
+	Name            string
+	AvailableAmount int32
+	Size            string
+	Price           string
+	Material        string
+	Category        string
+	Description     string
+	ImageUrl        string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	IsActive        bool
+}
+
+func (q *Queries) GetActiveBookmarks(ctx context.Context) ([]GetActiveBookmarksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveBookmarks)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Bookmark
+	var items []GetActiveBookmarksRow
 	for rows.Next() {
-		var i Bookmark
+		var i GetActiveBookmarksRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -36,7 +64,7 @@ func (q *Queries) GetBookmarks(ctx context.Context) ([]Bookmark, error) {
 			&i.Size,
 			&i.Price,
 			&i.Material,
-			&i.CategoryID,
+			&i.Category,
 			&i.Description,
 			&i.ImageUrl,
 			&i.CreatedAt,
@@ -54,4 +82,60 @@ func (q *Queries) GetBookmarks(ctx context.Context) ([]Bookmark, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getBookmarkById = `-- name: GetBookmarkById :one
+SELECT
+    b.id,
+    b.name,
+    available_amount,
+    size,
+    price,
+    material,
+    c.name,
+    description,
+    image_url,
+    b.created_at,
+    b.updated_at,
+    b.is_active
+FROM
+    bookmarks b
+    JOIN bookmark_category c ON b.category_id = c.id
+WHERE
+    b.id = $1
+`
+
+type GetBookmarkByIdRow struct {
+	ID              int32
+	Name            string
+	AvailableAmount int32
+	Size            string
+	Price           string
+	Material        string
+	Name_2          string
+	Description     string
+	ImageUrl        string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	IsActive        bool
+}
+
+func (q *Queries) GetBookmarkById(ctx context.Context, id int32) (GetBookmarkByIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getBookmarkById, id)
+	var i GetBookmarkByIdRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.AvailableAmount,
+		&i.Size,
+		&i.Price,
+		&i.Material,
+		&i.Name_2,
+		&i.Description,
+		&i.ImageUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsActive,
+	)
+	return i, err
 }
