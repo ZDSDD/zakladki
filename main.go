@@ -12,12 +12,17 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 	"github.com/zdsdd/zakladki/internal/bookmarks"
 	"github.com/zdsdd/zakladki/internal/database"
 	"github.com/zdsdd/zakladki/internal/users"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -27,8 +32,22 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
-
-	godotenv.Load()
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://127.0.0.1:5173"
+	}
+	c := cors.New(cors.Options{
+		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
+		AllowedOrigins: []string{allowedOrigins},
+		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PUT", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link", "Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	})
+	r.Use(c.Handler)
+	r.Handle("/images/*", http.StripPrefix("/images/", http.FileServer(http.Dir("./images"))))
 	port := getEnvVariable("PORT")
 	dbURL := getEnvVariable("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
@@ -57,6 +76,9 @@ func main() {
 	userHandler := users.NewUserHandler(dbQueries, cfg.jwtSecret, cfg.minPasswordEntropy)
 	apiRouter.Mount("/users", userHandler.UsersRouter())
 
+	// bookmarks related routes
+	bh := bookmarks.NewBookmarksHandler(dbQueries)
+	apiRouter.Mount("/bookmarks", bh.BookmarksRouter())
 	// Health check and metrics routes
 	apiRouter.Get("/healthz", handleHealthz)
 	apiRouter.Get("/metrics", cfg.handleMetrics)
@@ -67,9 +89,6 @@ func main() {
 	// Admin-related routes
 	r.Mount("/admin", cfg.adminRouter(userHandler))
 
-	// bookmarks related routes
-	bh := bookmarks.NewBookmarksHandler(dbQueries)
-	r.Mount("/bookmarks", bh.BookmarksRouter())
 	log.Printf("Server running successfully on port: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }
