@@ -5,7 +5,8 @@ INSERT INTO
         created_at,
         updated_at,
         email,
-        hashed_password
+        hashed_password,
+        name
     )
 VALUES
     (
@@ -13,7 +14,8 @@ VALUES
         NOW(),
         NOW(),
         $1,
-        $2
+        $2,
+        $3
     ) RETURNING *;
 
 -- name: PurgeUsers :exec

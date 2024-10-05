@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 	"github.com/zdsdd/zakladki/internal/database"
-	"github.com/zdsdd/zakladki/internal/jsonUtils"
 )
 
 type UsersHandler struct {
@@ -26,12 +25,34 @@ func NewUserHandler(db *database.Queries, jwtSecret string, minPasswordEntropy f
 	}
 }
 
+type UserReqBody struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
+}
+
+func ExtractUserCredentials(r *http.Request) (userReq UserReqBody, err error) {
+	err = json.NewDecoder(r.Body).Decode(&userReq)
+	if err != nil {
+		return userReq, err
+	}
+	if userReq.Email == "" {
+		return userReq, fmt.Errorf("Email is required")
+	}
+	if userReq.Password == "" {
+		return userReq, fmt.Errorf("Password is required")
+	}
+	if userReq.Name == "" {
+		return userReq, fmt.Errorf("Name is required")
+	}
+	return userReq, nil
+}
 func (uh *UsersHandler) UsersRouter() http.Handler {
 	// User-related routes
 	r := chi.NewRouter()
 
-	r.Post("/", uh.requireLoginAndPassword(uh.handleCreateUser))
-	r.Post("/login", uh.requireLoginAndPassword(uh.handleLogin))
+	r.Post("/", uh.handleCreateUser)
+	r.Post("/login", uh.handleLogin)
 
 	// mux.HandleFunc("PUT /api/users", uh.requireBearerToken(uh.handleUpdateUser))
 	r.Put("/password", uh.RequireValidJWTToken(http.HandlerFunc(uh.handleUpdatePassword)))
@@ -41,26 +62,6 @@ func (uh *UsersHandler) UsersRouter() http.Handler {
 	r.Post("/refresh", uh.RequireValidJWTToken(http.HandlerFunc(uh.handleRefreshToken)))
 	r.Post("/revoke", uh.requireBearerToken(http.HandlerFunc(uh.handleRevokeToken)))
 	return r
-}
-
-func (uh *UsersHandler) requireLoginAndPassword(next func(w http.ResponseWriter, r *http.Request, email, password string)) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		type UserReqBody struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}
-		var userReq UserReqBody
-		json.NewDecoder(r.Body).Decode(&userReq)
-		if userReq.Email == "" {
-			jsonUtils.ResponseWithJsonError(w, "Email is required", 400)
-			return
-		}
-		if userReq.Password == "" {
-			jsonUtils.ResponseWithJsonError(w, "Password is required", 400)
-			return
-		}
-		next(w, r, userReq.Email, userReq.Password)
-	}
 }
 
 // Helper function to get user ID from context
@@ -90,13 +91,12 @@ type UserResponseLogin struct {
 	RefreshToken string    `json:"refresh_token,omitempty"`
 }
 
-func mapToJson(du *database.User, token string, refreshToken string) UserResponseLogin {
+func mapToJson(du *database.User, token string) UserResponseLogin {
 	return UserResponseLogin{
-		ID:           du.ID,
-		Email:        du.Email,
-		CreatedAt:    du.CreatedAt,
-		UpdatedAt:    du.UpdatedAt,
-		Token:        token,
-		RefreshToken: refreshToken,
+		ID:        du.ID,
+		Email:     du.Email,
+		CreatedAt: du.CreatedAt,
+		UpdatedAt: du.UpdatedAt,
+		Token:     token,
 	}
 }

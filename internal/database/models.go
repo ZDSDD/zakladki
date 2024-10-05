@@ -50,4 +50,5 @@ type User struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Role           int32
+	Name           string
 }

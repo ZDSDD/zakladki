@@ -43,7 +43,7 @@ func (uh *UsersHandler) handleUpdateEmail(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	jsonUtils.ResponseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
+	jsonUtils.ResponseWithJson(mapToJson(&updatedUser, ""), w, 201)
 }
 
 func (uh *UsersHandler) handleUpdatePassword(w http.ResponseWriter, r *http.Request) {
@@ -82,5 +82,5 @@ func (uh *UsersHandler) handleUpdatePassword(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	jsonUtils.ResponseWithJson(mapToJson(&updatedUser, "", ""), w, 201)
+	jsonUtils.ResponseWithJson(mapToJson(&updatedUser, ""), w, 201)
 }

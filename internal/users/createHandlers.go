@@ -8,9 +8,15 @@ import (
 	"github.com/zdsdd/zakladki/internal/jsonUtils"
 )
 
-func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request, email, password string) {
+func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request) {
+	userReqBody, err := ExtractUserCredentials(r)
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 400)
+		return
+	}
+	var email, password, name string = userReqBody.Email, userReqBody.Password, userReqBody.Name
 
-	_, err := uh.db.GetUserByEmail(r.Context(), email)
+	_, err = uh.db.GetUserByEmail(r.Context(), email)
 	if err == nil {
 		jsonUtils.ResponseWithJsonError(w, "User already exists", 400)
 		return
@@ -28,10 +34,11 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request,
 	user, err := uh.db.CreateUser(r.Context(), database.CreateUserParams{
 		Email:          email,
 		HashedPassword: hashedPasswd,
+		Name:           name,
 	})
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
 		return
 	}
-	jsonUtils.ResponseWithJson(mapToJson(&user, "", ""), w, http.StatusCreated)
+	jsonUtils.ResponseWithJson(mapToJson(&user, ""), w, http.StatusCreated)
 }
