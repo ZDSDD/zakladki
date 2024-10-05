@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
@@ -83,22 +82,17 @@ func GetBearerTokenFromContext(r *http.Request) (string, error) {
 }
 
 type UserResponseLogin struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	Token        string    `json:"token,omitempty"`
-	RefreshToken string    `json:"refresh_token,omitempty"`
-	Name         string    `json:"name"`
+	ID    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
+	Token string    `json:"token,omitempty"`
+	Name  string    `json:"name"`
 }
 
 func mapToJson(du *database.User, token string) UserResponseLogin {
 	return UserResponseLogin{
-		ID:        du.ID,
-		Email:     du.Email,
-		CreatedAt: du.CreatedAt,
-		UpdatedAt: du.UpdatedAt,
-		Token:     token,
-		Name:      du.Name,
+		ID:    du.ID,
+		Email: du.Email,
+		Token: token,
+		Name:  du.Name,
 	}
 }
