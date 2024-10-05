@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
+	err := godotenv.Load("app.env")
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}
@@ -32,13 +33,15 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
-	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
-	if allowedOrigins == "" {
-		allowedOrigins = "http://127.0.0.1:5173"
+	var allowedOrigins []string
+	allowedOrigins = strings.Split(os.Getenv("ALLOWED_ORIGINS"), ", ")
+	if allowedOrigins == nil {
+		allowedOrigins = []string{"http://localhost:5173"}
 	}
+	log.Default().Printf("Allowed origins: %v\n", allowedOrigins)
 	c := cors.New(cors.Options{
 		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		AllowedOrigins: []string{allowedOrigins},
+		AllowedOrigins: allowedOrigins,
 		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
 		AllowedMethods:   []string{"GET", "POST", "PUT", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
@@ -110,7 +113,7 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func getEnvVariable(key string) string {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("app.env")
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}

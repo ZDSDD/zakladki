@@ -1,0 +1,40 @@
+version: '1'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+      - rabbitmq
+    env_file:
+      - app.env  # Use app-specific environment variables
+    networks:
+      - app-network
+
+  db:
+    image: postgres:17
+    env_file:
+      - db.env  # Use db-specific environment variables
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    env_file:
+      - rabbitmq.env  # Use rabbitmq-specific environment variables (when added)
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
