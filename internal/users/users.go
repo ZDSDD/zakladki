@@ -89,6 +89,7 @@ type UserResponseLogin struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 	Token        string    `json:"token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
+	Name         string    `json:"name"`
 }
 
 func mapToJson(du *database.User, token string) UserResponseLogin {
@@ -98,5 +99,6 @@ func mapToJson(du *database.User, token string) UserResponseLogin {
 		CreatedAt: du.CreatedAt,
 		UpdatedAt: du.UpdatedAt,
 		Token:     token,
+		Name:      du.Name,
 	}
 }
