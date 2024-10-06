@@ -11,7 +11,14 @@ import (
 )
 
 func (uh *UsersHandler) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
-	refreshToken, err := GetBearerTokenFromContext(r)
+	// Extract refresh token from cookie
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, "Refresh token not found", 401)
+		return
+	}
+	refreshToken := cookie.Value
+
 	rtdb, err := uh.db.GetRefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
