@@ -42,7 +42,7 @@ func ExtractUserCredentials(r *http.Request) (userReq UserReqBody, err error) {
 		return userReq, fmt.Errorf("Password is required")
 	}
 	if userReq.Name == "" {
-		return userReq, fmt.Errorf("Name is required")
+		// return userReq, fmt.Errorf("Name is required")
 	}
 	return userReq, nil
 }
@@ -81,18 +81,28 @@ func GetBearerTokenFromContext(r *http.Request) (string, error) {
 	return userId, nil
 }
 
-type UserResponseLogin struct {
+type UserResponse struct {
 	ID    uuid.UUID `json:"id"`
-	Email string    `json:"email"`
-	Token string    `json:"token,omitempty"`
 	Name  string    `json:"name"`
+	Email string    `json:"email"`
+}
+
+type UserResponseLogin struct {
+	User struct {
+		ID    uuid.UUID `json:"id"`
+		Name  string    `json:"name"`
+		Email string    `json:"email"`
+	} `json:"user"`
+	Token string `json:"token,omitempty"`
 }
 
 func mapToJson(du *database.User, token string) UserResponseLogin {
 	return UserResponseLogin{
-		ID:    du.ID,
-		Email: du.Email,
+		User: UserResponse{
+			ID:    du.ID,
+			Email: du.Email,
+			Name:  du.Name,
+		},
 		Token: token,
-		Name:  du.Name,
 	}
 }
