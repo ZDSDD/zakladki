@@ -2,11 +2,17 @@ package users
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/zdsdd/zakladki/internal/auth"
 	"github.com/zdsdd/zakladki/internal/database"
 	"github.com/zdsdd/zakladki/internal/jsonUtils"
 )
+
+// make email lowercase
+func normalizeEmail(email string) string {
+	return strings.ToLower(email)
+}
 
 func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	userReqBody, err := ExtractUserCredentials(r)
@@ -20,6 +26,7 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 		jsonUtils.ResponseWithJsonError(w, "Name is required", 400)
 		return
 	}
+	email = normalizeEmail(email)
 	_, err = uh.db.GetUserByEmail(r.Context(), email)
 	if err == nil {
 		jsonUtils.ResponseWithJsonError(w, "User already exists", 400)

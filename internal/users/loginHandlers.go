@@ -22,6 +22,7 @@ func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var email, password = userReqBody.Email, userReqBody.Password
+	email = normalizeEmail(email)
 	user, err := uh.db.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		jsonUtils.ResponseWithJsonError(w, "User not found", http.StatusNotFound)
