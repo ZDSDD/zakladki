@@ -69,13 +69,14 @@ func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Set the refresh token in a cookie
 	http.SetCookie(w, &http.Cookie{
-		Name:     refreshTokenCookie,
-		Value:    refreshToken.Token,
-		Path:     "/", // or your desired path
-		Expires:  time.Now().Add(refreshTokenExpiry),
-		HttpOnly: true,                 // Recommended to help prevent XSS attacks
-		Secure:   true,                 // Set to true if using HTTPS
-		SameSite: http.SameSiteLaxMode, // Adjust as needed
+		Name:        refreshTokenCookie,
+		Value:       refreshToken.Token,
+		Path:        "/", // or your desired path
+		Expires:     time.Now().Add(refreshTokenExpiry),
+		HttpOnly:    true,                  // Recommended to help prevent XSS attacks
+		Secure:      true,                  // Set to true if using HTTPS
+		SameSite:    http.SameSiteNoneMode, // Adjust as needed
+		Partitioned: true,                  // Set to true if your application is partitioned
 	})
 
 	// Respond with user details and tokens
