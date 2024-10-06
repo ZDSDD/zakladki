@@ -14,8 +14,12 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 		jsonUtils.ResponseWithJsonError(w, err.Error(), 400)
 		return
 	}
-	var email, password, name string = userReqBody.Email, userReqBody.Password, userReqBody.Name
 
+	var email, password, name string = userReqBody.Email, userReqBody.Password, userReqBody.Name
+	if name == "" {
+		jsonUtils.ResponseWithJsonError(w, "Name is required", 400)
+		return
+	}
 	_, err = uh.db.GetUserByEmail(r.Context(), email)
 	if err == nil {
 		jsonUtils.ResponseWithJsonError(w, "User already exists", 400)
