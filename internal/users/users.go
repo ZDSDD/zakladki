@@ -36,10 +36,10 @@ func ExtractUserCredentials(r *http.Request) (userReq UserReqBody, err error) {
 		return userReq, err
 	}
 	if userReq.Email == "" {
-		return userReq, fmt.Errorf("Email is required")
+		return userReq, fmt.Errorf("email is required")
 	}
 	if userReq.Password == "" {
-		return userReq, fmt.Errorf("Password is required")
+		return userReq, fmt.Errorf("password is required")
 	}
 	if userReq.Name == "" {
 		// return userReq, fmt.Errorf("Name is required")

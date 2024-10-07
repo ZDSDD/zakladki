@@ -41,6 +41,10 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	hashedPasswd, err := auth.HashPassword(password)
+    if err != nil {
+        jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+        return
+    }
 
 	user, err := uh.db.CreateUser(r.Context(), database.CreateUserParams{
 		Email:          email,
