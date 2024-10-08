@@ -67,8 +67,11 @@ func main() {
 		minPasswordEntropy: 60.0,
 	}
 	server := http.Server{
-		Handler: r,
-		Addr:    ":" + port,
+		Handler:      r,
+		Addr:         ":" + port,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	// api router
