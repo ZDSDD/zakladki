@@ -16,6 +16,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/zdsdd/zakladki/internal/bookmarks"
 	"github.com/zdsdd/zakladki/internal/database"
+	"github.com/zdsdd/zakladki/internal/jsonUtils"
 	"github.com/zdsdd/zakladki/internal/users"
 )
 
@@ -58,6 +59,7 @@ func main() {
 		log.Fatalf("Error opening database: %s", err)
 		os.Exit(1)
 	}
+	defer db.Close()
 	dbQueries := database.New(db)
 
 	cfg := &apiConfig{
@@ -112,7 +114,10 @@ func (cfg *apiConfig) adminRouter(uh *users.UsersHandler) http.Handler {
 func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK\n"))
+	_, err := w.Write([]byte("OK\n"))
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+	}
 }
 
 func getEnvVariable(key string) string {

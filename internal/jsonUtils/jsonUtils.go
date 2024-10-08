@@ -13,7 +13,10 @@ func ResponseWithJson(data interface{}, w http.ResponseWriter, code int) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	w.Write(dat)
+	_, err := w.Write(dat)
+	if err != nil {
+		log.Printf("ResponseWithJson: Couldn't write:\n%v.\n", dat)
+	}
 }
 
 func MarshalToJson(data interface{}) (dat []byte, ok bool) {
@@ -26,13 +29,18 @@ func MarshalToJson(data interface{}) (dat []byte, ok bool) {
 }
 
 func ResponseWithJsonError(w http.ResponseWriter, message string, errorCode int) {
-	dat, ok := MarshalToJson(struct {
+	type ErrorResponse struct {
 		Error string `json:"error"`
-	}{Error: message})
-	if !ok {
-		return
 	}
+
+	response := ErrorResponse{Error: message}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(errorCode)
-	w.Write(dat)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("ResponseWithJsonError: Couldn't encode response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }

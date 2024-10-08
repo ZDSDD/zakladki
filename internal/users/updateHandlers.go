@@ -15,7 +15,11 @@ func (uh *UsersHandler) handleUpdateEmail(w http.ResponseWriter, r *http.Request
 		Email string `json:"email"`
 	}
 	var userReq UserReqBody
-	json.NewDecoder(r.Body).Decode(&userReq)
+	err := json.NewDecoder(r.Body).Decode(&userReq)
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		return
+	}
 	if userReq.Email == "" {
 		jsonUtils.ResponseWithJsonError(w, "Email is required", 400)
 		return
@@ -51,7 +55,11 @@ func (uh *UsersHandler) handleUpdatePassword(w http.ResponseWriter, r *http.Requ
 		Password string `json:"password"`
 	}
 	var userReq UserReqBody
-	json.NewDecoder(r.Body).Decode(&userReq)
+	err := json.NewDecoder(r.Body).Decode(&userReq)
+	if err != nil {
+		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		return
+	}
 	if userReq.Password == "" {
 		jsonUtils.ResponseWithJsonError(w, "password is required", 400)
 		return
