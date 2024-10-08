@@ -110,7 +110,6 @@ func (q *Queries) PurgeUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, purgeUsers)
 	return err
 }
-
 const updateUser = `-- name: UpdateUser :one
 UPDATE
     users
@@ -175,6 +174,7 @@ func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams
 	return i, err
 }
 
+// #nosec G101: False positive - No hardcoded credentials
 const updateUserPassword = `-- name: UpdateUserPassword :one
 UPDATE
     users
