@@ -110,6 +110,7 @@ func (q *Queries) PurgeUsers(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, purgeUsers)
 	return err
 }
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE
     users

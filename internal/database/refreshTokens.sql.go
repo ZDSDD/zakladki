@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 )
+
 // #nosec G101: False positive - No hardcoded credentials
 const createRefreshToken = `-- name: CreateRefreshToken :one
 INSERT INTO
@@ -44,6 +45,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 	)
 	return i, err
 }
+
 // #nosec G101: False positive - No hardcoded credentials
 const getRefreshToken = `-- name: GetRefreshToken :one
 SELECT
@@ -67,6 +69,7 @@ func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshTok
 	)
 	return i, err
 }
+
 // #nosec G101: False positive - No hardcoded credentials
 const getRefreshTokenForUser = `-- name: GetRefreshTokenForUser :one
 SELECT
@@ -90,6 +93,7 @@ func (q *Queries) GetRefreshTokenForUser(ctx context.Context, userID uuid.UUID) 
 	)
 	return i, err
 }
+
 // #nosec G101: False positive - No hardcoded credentials
 const purgeRefreshTokens = `-- name: PurgeRefreshTokens :exec
 DELETE FROM
@@ -100,6 +104,7 @@ func (q *Queries) PurgeRefreshTokens(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, purgeRefreshTokens)
 	return err
 }
+
 // #nosec G101: False positive - No hardcoded credentials
 const purgeRevokedToknes = `-- name: PurgeRevokedToknes :exec
 DELETE FROM
@@ -112,6 +117,7 @@ func (q *Queries) PurgeRevokedToknes(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, purgeRevokedToknes)
 	return err
 }
+
 // #nosec G101: False positive - No hardcoded credentials
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE
@@ -127,6 +133,7 @@ func (q *Queries) RevokeRefreshToken(ctx context.Context, token string) error {
 	_, err := q.db.ExecContext(ctx, revokeRefreshToken, token)
 	return err
 }
+
 // #nosec G101: False positive - No hardcoded credentials
 const updateExpiresAtRefreshToken = `-- name: UpdateExpiresAtRefreshToken :one
 UPDATE refresh_tokens
