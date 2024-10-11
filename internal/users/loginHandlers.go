@@ -1,6 +1,7 @@
 package users
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
@@ -15,47 +16,54 @@ const (
 	refreshTokenCookie = "refresh_token"
 )
 
+// TODO: handle scenarios when user uses 3rd party login
 func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	userReqBody, err := ExtractUserCredentials(r)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 400)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 400)
 		return
 	}
 	var email, password = userReqBody.Email, userReqBody.Password
 	email = normalizeEmail(email)
-	user, err := uh.db.GetUserByEmail(r.Context(), email)
+	user, err := uh.db.GetUserByEmail(r.Context(), sql.NullString{String: email, Valid: true})
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, "User not found", http.StatusNotFound)
+		jsonUtils.RespondWithJsonError(w, "User not found", http.StatusNotFound)
 		return
 	}
 
-	if err := auth.CheckPasswordHash(password, user.HashedPassword); err != nil {
-		jsonUtils.ResponseWithJsonError(w, "Invalid password", http.StatusUnauthorized)
+	if err := auth.CheckPasswordHash(password, user.HashedPassword.String); err != nil {
+		jsonUtils.RespondWithJsonError(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
 
-	token, err := auth.MakeJWT(user.ID, uh.jwtSecret, accessTokenExpiry)
+	token, err := newFunction(user, uh, w, r)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), http.StatusInternalServerError)
+		jsonUtils.RespondWithJsonError(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	jsonUtils.ResponseWithJson(mapToJson(&user, token), w, http.StatusOK)
+}
+
+func newFunction(user database.User, uh *UsersHandler, w http.ResponseWriter, r *http.Request) (token string, err error) {
+	token, err = auth.MakeJWT(user.ID, uh.jwtSecret, accessTokenExpiry)
+	if err != nil {
+		return "", err
 	}
 
 	var refreshToken database.RefreshToken
 	_, err = uh.db.GetRefreshTokenForUser(r.Context(), user.ID)
-	if err == nil { // Existing refresh token found
+	if err == nil {
 		refreshToken, err = uh.db.UpdateExpiresAtRefreshToken(r.Context(), database.UpdateExpiresAtRefreshTokenParams{
 			ExpiresAt: time.Now().Add(refreshTokenExpiry),
 			UserID:    user.ID,
 		})
 		if err != nil {
-			jsonUtils.ResponseWithJsonError(w, err.Error(), http.StatusInternalServerError)
-			return
+			return "", err
 		}
 	} else {
 		refreshTokenID, err := auth.MakeRefreshToken()
 		if err != nil {
-			jsonUtils.ResponseWithJsonError(w, err.Error(), http.StatusInternalServerError)
-			return
+			return "", err
 		}
 		refreshToken, err = uh.db.CreateRefreshToken(r.Context(), database.CreateRefreshTokenParams{
 			Token:     refreshTokenID,
@@ -63,23 +71,20 @@ func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt: time.Now().Add(refreshTokenExpiry),
 		})
 		if err != nil {
-			jsonUtils.ResponseWithJsonError(w, err.Error(), http.StatusInternalServerError)
-			return
+			return "", err
 		}
 	}
 
-	// Set the refresh token in a cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:        refreshTokenCookie,
 		Value:       refreshToken.Token,
-		Path:        "/", // or your desired path
+		Path:        "/",
 		Expires:     time.Now().Add(refreshTokenExpiry),
-		HttpOnly:    true,                  // Recommended to help prevent XSS attacks
-		Secure:      true,                  // Set to true if using HTTPS
-		SameSite:    http.SameSiteNoneMode, // Adjust as needed
-		Partitioned: true,                  // Set to true if your application is partitioned
+		HttpOnly:    true, // Recommended to help prevent XSS attacks
+		Secure:      true, // Set to true if using HTTPS
+		SameSite:    http.SameSiteNoneMode,
+		Partitioned: true,
 	})
 
-	// Respond with user details and tokens
-	jsonUtils.ResponseWithJson(mapToJson(&user, token), w, http.StatusOK)
+	return token, nil
 }

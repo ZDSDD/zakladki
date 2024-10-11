@@ -52,6 +52,7 @@ func (uh *UsersHandler) UsersRouter() http.Handler {
 
 	r.Post("/", uh.handleCreateUser)
 	r.Post("/login", uh.handleLogin)
+	r.Post("/google", uh.HandleLoginViaGoogle)
 
 	// mux.HandleFunc("PUT /api/users", uh.requireBearerToken(uh.handleUpdateUser))
 	r.Put("/password", uh.RequireValidJWTToken(http.HandlerFunc(uh.handleUpdatePassword)))
@@ -100,7 +101,7 @@ func mapToJson(du *database.User, token string) UserResponseLogin {
 	return UserResponseLogin{
 		User: UserResponse{
 			ID:    du.ID,
-			Email: du.Email,
+			Email: du.Email.String,
 			Name:  du.Name,
 		},
 		Token: token,

@@ -32,7 +32,7 @@ func (cfg *apiConfig) handleReset(w http.ResponseWriter, r *http.Request) {
 	cfg.fileserverHits.Store(0)
 	err := cfg.db.PurgeUsers(r.Context())
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 	w.WriteHeader(204)
@@ -41,7 +41,7 @@ func (cfg *apiConfig) handleReset(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	_, err := w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits.Load())))
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 }
@@ -55,7 +55,7 @@ func (cfg *apiConfig) handleAdminMetrics(w http.ResponseWriter, r *http.Request)
   </body>
 </html>`, cfg.fileserverHits.Load())))
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 }

@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"google.golang.org/api/idtoken"
 )
 
 type MyCustomClaims struct {
@@ -40,4 +42,17 @@ func ValidateJWT(tokenString, tokenSecret string) (userId uuid.UUID, err error) 
 		return uuid.UUID{}, fmt.Errorf("unknown claims type, cannot proceed")
 	}
 	return userId, err
+}
+
+func ValidateGoogleJWT(tokenString, tokenSecret string) (*idtoken.Payload, error) {
+	ctx := context.Background()
+	clientID := tokenSecret
+
+	payload, err := idtoken.Validate(ctx, tokenString, clientID)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate token: %v", err)
+	}
+
+	return payload, nil
 }

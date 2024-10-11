@@ -28,7 +28,7 @@ func MarshalToJson(data interface{}) (dat []byte, ok bool) {
 	return dat, true
 }
 
-func ResponseWithJsonError(w http.ResponseWriter, message string, errorCode int) {
+func RespondWithJsonError(w http.ResponseWriter, message string, errorCode int) {
 	type ErrorResponse struct {
 		Error string `json:"error"`
 	}

@@ -116,7 +116,7 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("OK\n"))
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 	}
 }
 

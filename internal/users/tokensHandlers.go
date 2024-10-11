@@ -14,37 +14,37 @@ func (uh *UsersHandler) handleRefreshToken(w http.ResponseWriter, r *http.Reques
 	// Extract refresh token from cookie
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, "Refresh token not found", 401)
+		jsonUtils.RespondWithJsonError(w, "Refresh token not found", 401)
 		return
 	}
 	refreshToken := cookie.Value
 
 	rtdb, err := uh.db.GetRefreshToken(r.Context(), refreshToken)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 		return
 	}
 	if rtdb.ExpiresAt.Before(time.Now()) {
-		jsonUtils.ResponseWithJsonError(w, "Refresh token expired", 401)
+		jsonUtils.RespondWithJsonError(w, "Refresh token expired", 401)
 		return
 	}
 	if rtdb.RevokedAt.Valid {
-		jsonUtils.ResponseWithJsonError(w, "Refresh token revoked", 401)
+		jsonUtils.RespondWithJsonError(w, "Refresh token revoked", 401)
 		return
 	}
 	userId, err := GetUserIDFromContext(r)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 		return
 	}
 	if rtdb.UserID != userId {
-		jsonUtils.ResponseWithJsonError(w, "Refresh token does not belong to the user", 401)
+		jsonUtils.RespondWithJsonError(w, "Refresh token does not belong to the user", 401)
 		return
 	}
 	token, err := auth.MakeJWT(userId, uh.jwtSecret, time.Hour)
 
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 	jsonUtils.ResponseWithJson(map[string]string{"token": token}, w, http.StatusOK)
@@ -59,11 +59,11 @@ func (uh *UsersHandler) requireBearerToken(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token, err := auth.GetBearerToken(r.Header)
 		if err != nil {
-			jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+			jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 			return
 		}
 		if token == "" {
-			jsonUtils.ResponseWithJsonError(w, "bearer token is required", 400)
+			jsonUtils.RespondWithJsonError(w, "bearer token is required", 400)
 			return
 		}
 		ctx := context.WithValue(r.Context(), TokenKey, token)
@@ -106,11 +106,11 @@ func (uh *UsersHandler) RequireValidJWTToken(next http.Handler) http.HandlerFunc
 func (uh *UsersHandler) handleRevokeToken(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := GetBearerTokenFromContext(r)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 		return
 	}
 	if err = uh.db.RevokeRefreshToken(r.Context(), refreshToken); err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 	w.WriteHeader(204)

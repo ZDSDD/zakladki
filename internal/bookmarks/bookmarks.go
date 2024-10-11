@@ -27,7 +27,7 @@ func (bh *BookmarksHandler) BookmarksRouter() http.Handler {
 func (bh *BookmarksHandler) HandleGetBookmarks(w http.ResponseWriter, r *http.Request) {
 	bookmarks, err := bh.db.GetActiveBookmarks(r.Context())
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 	jsonUtils.ResponseWithJson(bookmarks, w, http.StatusOK)

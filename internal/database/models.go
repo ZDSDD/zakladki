@@ -6,10 +6,54 @@ package database
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type AuthProvider string
+
+const (
+	AuthProviderGoogle   AuthProvider = "google"
+	AuthProviderFacebook AuthProvider = "facebook"
+)
+
+func (e *AuthProvider) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AuthProvider(s)
+	case string:
+		*e = AuthProvider(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AuthProvider: %T", src)
+	}
+	return nil
+}
+
+type NullAuthProvider struct {
+	AuthProvider AuthProvider
+	Valid        bool // Valid is true if AuthProvider is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAuthProvider) Scan(value interface{}) error {
+	if value == nil {
+		ns.AuthProvider, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AuthProvider.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAuthProvider) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AuthProvider), nil
+}
 
 type Bookmark struct {
 	ID              int32
@@ -45,10 +89,19 @@ type RefreshToken struct {
 
 type User struct {
 	ID             uuid.UUID
-	Email          string
-	HashedPassword string
+	Email          sql.NullString
+	HashedPassword sql.NullString
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Role           int32
 	Name           string
+	EmailVerified  bool
+}
+
+type UserAuthProvider struct {
+	UserID         uuid.UUID
+	ProviderUserID string
+	Provider       AuthProvider
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }

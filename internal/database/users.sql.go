@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -29,12 +30,12 @@ VALUES
         $1,
         $2,
         $3
-    ) RETURNING id, email, hashed_password, created_at, updated_at, role, name
+    ) RETURNING id, email, hashed_password, created_at, updated_at, role, name, email_verified
 `
 
 type CreateUserParams struct {
-	Email          string
-	HashedPassword string
+	Email          sql.NullString
+	HashedPassword sql.NullString
 	Name           string
 }
 
@@ -49,20 +50,21 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT
-    users.id, users.email, users.hashed_password, users.created_at, users.updated_at, users.role, users.name
+    users.id, users.email, users.hashed_password, users.created_at, users.updated_at, users.role, users.name, users.email_verified
 FROM
     users
 WHERE
     email = $1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (User, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i User
 	err := row.Scan(
@@ -73,13 +75,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
 const getUserById = `-- name: GetUserById :one
 SELECT
-    users.id, users.email, users.hashed_password, users.created_at, users.updated_at, users.role, users.name
+    users.id, users.email, users.hashed_password, users.created_at, users.updated_at, users.role, users.name, users.email_verified
 FROM
     users
 WHERE
@@ -97,6 +100,7 @@ func (q *Queries) GetUserById(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -120,12 +124,12 @@ SET
     updated_at = NOW()
 WHERE
     id = $3
-RETURNING id, email, hashed_password, created_at, updated_at, role, name
+RETURNING id, email, hashed_password, created_at, updated_at, role, name, email_verified
 `
 
 type UpdateUserParams struct {
-	Email          string
-	HashedPassword string
+	Email          sql.NullString
+	HashedPassword sql.NullString
 	ID             uuid.UUID
 }
 
@@ -140,6 +144,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -152,11 +157,11 @@ SET
     updated_at = NOW()
 WHERE
     id = $2
-RETURNING id, email, hashed_password, created_at, updated_at, role, name
+RETURNING id, email, hashed_password, created_at, updated_at, role, name, email_verified
 `
 
 type UpdateUserEmailParams struct {
-	Email string
+	Email sql.NullString
 	ID    uuid.UUID
 }
 
@@ -171,11 +176,11 @@ func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }
 
-// #nosec G101: False positive - No hardcoded credentials
 const updateUserPassword = `-- name: UpdateUserPassword :one
 UPDATE
     users
@@ -184,11 +189,11 @@ SET
     updated_at = NOW()
 WHERE
     id = $2
-RETURNING id, email, hashed_password, created_at, updated_at, role, name
+RETURNING id, email, hashed_password, created_at, updated_at, role, name, email_verified
 `
 
 type UpdateUserPasswordParams struct {
-	HashedPassword string
+	HashedPassword sql.NullString
 	ID             uuid.UUID
 }
 
@@ -203,6 +208,7 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }
@@ -215,7 +221,7 @@ SET
     updated_at = NOW()
 WHERE
     id = $2
-RETURNING id, email, hashed_password, created_at, updated_at, role, name
+RETURNING id, email, hashed_password, created_at, updated_at, role, name, email_verified
 `
 
 type UpdateUserRoleParams struct {
@@ -234,6 +240,7 @@ func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) 
 		&i.UpdatedAt,
 		&i.Role,
 		&i.Name,
+		&i.EmailVerified,
 	)
 	return i, err
 }

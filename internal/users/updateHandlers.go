@@ -1,6 +1,7 @@
 package users
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -17,33 +18,33 @@ func (uh *UsersHandler) handleUpdateEmail(w http.ResponseWriter, r *http.Request
 	var userReq UserReqBody
 	err := json.NewDecoder(r.Body).Decode(&userReq)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 	if userReq.Email == "" {
-		jsonUtils.ResponseWithJsonError(w, "Email is required", 400)
+		jsonUtils.RespondWithJsonError(w, "Email is required", 400)
 		return
 	}
 	if !auth.IsEmailValid(userReq.Email) {
-		jsonUtils.ResponseWithJsonError(w, "Invalid email", 400)
+		jsonUtils.RespondWithJsonError(w, "Invalid email", 400)
 		return
 	}
 	userId, err := GetUserIDFromContext(r)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 		return
 	}
 
 	updatedUser, err := uh.db.UpdateUserEmail(r.Context(), database.UpdateUserEmailParams{
-		Email: userReq.Email,
+		Email: sql.NullString{String: userReq.Email, Valid: true},
 		ID:    userId,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			jsonUtils.ResponseWithJsonError(w, "Email already exists", 403)
+			jsonUtils.RespondWithJsonError(w, "Email already exists", 403)
 			return
 		}
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 
@@ -57,36 +58,36 @@ func (uh *UsersHandler) handleUpdatePassword(w http.ResponseWriter, r *http.Requ
 	var userReq UserReqBody
 	err := json.NewDecoder(r.Body).Decode(&userReq)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 	if userReq.Password == "" {
-		jsonUtils.ResponseWithJsonError(w, "password is required", 400)
+		jsonUtils.RespondWithJsonError(w, "password is required", 400)
 		return
 	}
 	if err := auth.CheckPasswordStrength(userReq.Password, uh.minPasswordEntropy); err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 400)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 400)
 		return
 	}
 
 	hashesPassword, err := auth.HashPassword(userReq.Password)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 
 	userID, err := GetUserIDFromContext(r)
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 401)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 		return
 	}
 
 	updatedUser, err := uh.db.UpdateUserPassword(r.Context(), database.UpdateUserPasswordParams{
-		HashedPassword: hashesPassword,
+		HashedPassword: sql.NullString{String: hashesPassword, Valid: true},
 		ID:             userID,
 	})
 	if err != nil {
-		jsonUtils.ResponseWithJsonError(w, err.Error(), 500)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
 
