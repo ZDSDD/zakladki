@@ -1,6 +1,7 @@
 package users
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
+	"github.com/zdsdd/zakladki/internal/auth"
 	"github.com/zdsdd/zakladki/internal/database"
 )
 
@@ -20,11 +22,32 @@ type User struct {
 	EmailVerified bool
 	CreatedAt     time.Time
 }
+type AuthProvider string
+
+const (
+	ProviderGoogle   AuthProvider = "google"
+	ProviderFacebook AuthProvider = "facebook"
+)
+
+type EmailAndPasswordAuthOption struct {
+	email          string
+	HashedPassword auth.HashedPassword
+}
+
+type ThirdPartyAuthOption struct {
+	Provider   AuthProvider // "google", "facebook", etc.
+	ProviderID string       // Third-party provider user ID
+}
+
+type AuthOptions struct {
+	EmailAndPasswordOption *EmailAndPasswordAuthOption // Only for password-based login
+	ThirdPartyOption       *ThirdPartyAuthOption
+}
 
 type UserService interface {
-	CreateUser(user User) error
-	GetUser(id string) (User, error)
-	GetUserByString(email string) (User, error)
+	CreateUser(ctx context.Context, name string, authOptions AuthOptions) (*User, error)
+	GetUser(ctx context.Context, id uuid.UUID) (*User, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	// Add other business logic methods...
 }
 type defaultUserService struct {
