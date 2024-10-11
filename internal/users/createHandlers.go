@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/zdsdd/zakladki/internal/auth"
 	"github.com/zdsdd/zakladki/internal/database"
 	"github.com/zdsdd/zakladki/internal/jsonUtils"
@@ -53,6 +54,15 @@ func (us *defaultUserService) GetUserByEmail(ctx context.Context, email string) 
 	}
 	return mapDBUserToServiceUser(&dbUser), nil
 }
+
+func (us *defaultUserService) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
+	dbUser, err := us.db.GetUserById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return mapDBUserToServiceUser(&dbUser), nil
+}
+
 func CreateUserWithEmailAndPasswordStrategy(s *defaultUserService, ctx context.Context, name string, option EmailAndPasswordAuthOption) (*User, error) {
 	// Check if a user with this email already exits
 	var email string = option.email
@@ -77,7 +87,34 @@ func CreateUserWithEmailAndPasswordStrategy(s *defaultUserService, ctx context.C
 }
 
 func CreateUserWithGoogleStrategy(s *defaultUserService, ctx context.Context, name string, option ThirdPartyAuthOption) (*User, error) {
+	// Check if user already exits
+	provider := option.Provider
+	userProviderId := option.ProviderID
 
+	_, err := s.db.GetUserByProvider(ctx, database.GetUserByProviderParams{
+		Provider:       database.AuthProvider(provider),
+		ProviderUserID: userProviderId,
+	})
+	// User already in the db
+	if err == nil {
+		return nil, fmt.Errorf("user already exist")
+	}
+	// If user doesn't exits, create an account
+	userdb, err := s.db.CreateUser(ctx, database.CreateUserParams{
+		Name: name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.CreateUserWithProvider(ctx, database.CreateUserWithProviderParams{
+		UserID:         userdb.ID,
+		ProviderUserID: userProviderId,
+		Provider:       database.AuthProvider(provider),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return mapDBUserToServiceUser(&userdb), nil
 }
 
 func (s *defaultUserService) CreateUser(ctx context.Context, name string, authOptions AuthOptions) (*User, error) {
