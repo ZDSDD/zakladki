@@ -4,21 +4,45 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 	"github.com/zdsdd/zakladki/internal/database"
 )
 
+// User represents a user in the business logic layer
+type User struct {
+	ID            uuid.UUID
+	Email         string
+	Name          string
+	Role          Role
+	EmailVerified bool
+	CreatedAt     time.Time
+}
+
+type UserService interface {
+	CreateUser(user User) error
+	GetUser(id string) (User, error)
+	GetUserByString(email string) (User, error)
+	// Add other business logic methods...
+}
+type defaultUserService struct {
+	db *database.Queries
+}
+
 type UsersHandler struct {
-	db                 *database.Queries
+	us                 UserService
 	jwtSecret          string
 	minPasswordEntropy float64
 }
 
 func NewUserHandler(db *database.Queries, jwtSecret string, minPasswordEntropy float64) *UsersHandler {
+	us := &defaultUserService{
+		db: db,
+	}
 	return &UsersHandler{
-		db:                 db,
+		us:                 us,
 		jwtSecret:          jwtSecret,
 		minPasswordEntropy: minPasswordEntropy,
 	}
@@ -83,27 +107,39 @@ func GetBearerTokenFromContext(r *http.Request) (string, error) {
 }
 
 type UserResponse struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name"`
-	Email string    `json:"email"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
-type UserResponseLogin struct {
-	User struct {
-		ID    uuid.UUID `json:"id"`
-		Name  string    `json:"name"`
-		Email string    `json:"email"`
-	} `json:"user"`
-	Token string `json:"token,omitempty"`
+type AuthResponse struct {
+	User  UserResponse `json:"user"`
+	Token string       `json:"token,omitempty"`
 }
 
-func mapToJson(du *database.User, token string) UserResponseLogin {
-	return UserResponseLogin{
-		User: UserResponse{
-			ID:    du.ID,
-			Email: du.Email.String,
-			Name:  du.Name,
-		},
+// MapUserToResponse converts a User model to a UserResponse
+func MapUserToResponse(u *User) UserResponse {
+	return UserResponse{
+		ID:   u.ID,
+		Name: u.Name,
+	}
+}
+
+// MapUserToAuthResponse converts a User model and token to an AuthResponse
+func MapUserToAuthResponse(u *User, token string) AuthResponse {
+	return AuthResponse{
+		User:  MapUserToResponse(u),
 		Token: token,
+	}
+}
+
+// Helper function to map DB user to service user
+func mapDBUserToServiceUser(dbUser *database.User) *User {
+	return &User{
+		ID:            dbUser.ID,
+		Email:         dbUser.Email.String,
+		Name:          dbUser.Name,
+		Role:          Role(dbUser.Role),
+		EmailVerified: dbUser.EmailVerified,
+		CreatedAt:     dbUser.CreatedAt,
 	}
 }
