@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/zdsdd/zakladki/internal/auth"
-	"github.com/zdsdd/zakladki/internal/database"
 	"github.com/zdsdd/zakladki/internal/jsonUtils"
 )
 
@@ -31,23 +30,17 @@ func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		jsonUtils.RespondWithJsonError(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
-	token, err := CreateFefreshToken(user, uh, w, r)
+	token, err := auth.MakeJWT(user.ID, uh.jwtSecret, accessTokenExpiry)
 	if err != nil {
-		jsonUtils.RespondWithJsonError(w, err.Error(), http.StatusInternalServerError)
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
-	jsonUtils.ResponseWithJson(MapUserToAuthResponse(user, token), w, http.StatusOK)
-}
 
-func CreateFefreshToken(user *User, uh *UsersHandler, w http.ResponseWriter, r *http.Request) (token string, err error) {
-	token, err = auth.MakeJWT(user.ID, uh.jwtSecret, accessTokenExpiry)
+	refreshToken, err := uh.us.GetRefreshTokenForUser(r.Context(), user.ID)
 	if err != nil {
-		return "", err
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
+		return
 	}
-
-	var refreshToken database.RefreshToken
-	_, err = uh.us.GetRefreshTokenForUser(r.Context(), user.ID)
-
 	http.SetCookie(w, &http.Cookie{
 		Name:        refreshTokenCookie,
 		Value:       refreshToken.Token,
@@ -58,6 +51,5 @@ func CreateFefreshToken(user *User, uh *UsersHandler, w http.ResponseWriter, r *
 		SameSite:    http.SameSiteNoneMode,
 		Partitioned: true,
 	})
-
-	return token, nil
+	jsonUtils.ResponseWithJson(MapUserToAuthResponse(user, token), w, http.StatusOK)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -66,10 +67,10 @@ type defaultUserService struct {
 
 func (s *defaultUserService) UpdateUserEmail(ctx context.Context, userID uuid.UUID, newEmail string) (*User, error) {
 	if newEmail == "" {
-		return nil, fmt.Errorf("Email is required")
+		return nil, fmt.Errorf("email is required")
 	}
 	if !auth.IsEmailValid(newEmail) {
-		return nil, fmt.Errorf("Invalid email")
+		return nil, fmt.Errorf("invalid email")
 	}
 	updatedUser, err := s.db.UpdateUserEmail(ctx, database.UpdateUserEmailParams{
 		Email: sql.NullString{String: newEmail, Valid: true},
@@ -77,7 +78,7 @@ func (s *defaultUserService) UpdateUserEmail(ctx context.Context, userID uuid.UU
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			return nil, fmt.Errorf("Email already exists")
+			return nil, fmt.Errorf("email already exists")
 		}
 		return nil, err
 	}
@@ -93,20 +94,20 @@ func (s *defaultUserService) GetRefreshToken(ctx context.Context, refreshT strin
 		return database.RefreshToken{}, err
 	}
 	if rtDB.ExpiresAt.Before(time.Now()) {
-		return database.RefreshToken{}, fmt.Errorf("Refresh token expired")
+		return database.RefreshToken{}, fmt.Errorf("refresh token expired")
 	}
 	if rtDB.RevokedAt.Valid {
-		return database.RefreshToken{}, fmt.Errorf("Refresh token revoked")
+		return database.RefreshToken{}, fmt.Errorf("refresh token revoked")
 	}
 	return rtDB, nil
 }
 
 func (s *defaultUserService) GetUserById(ctx context.Context, id uuid.UUID) (*User, error) {
-	user, err := s.GetUserById(ctx, id)
+	user, err := s.db.GetUserById(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	return mapDBUserToServiceUser(&user), nil
 }
 
 func (s *defaultUserService) UpdateUserPassword(ctx context.Context, userId uuid.UUID, rawPassword string) (*User, error) {
@@ -133,22 +134,17 @@ func (s *defaultUserService) UpdateUserPassword(ctx context.Context, userId uuid
 }
 
 func (s *defaultUserService) GetRefreshTokenForUser(ctx context.Context, userId uuid.UUID) (database.RefreshToken, error) {
-	refreshToken, err := s.db.GetRefreshTokenForUser(ctx, userId)
+	_, err := s.db.GetRefreshTokenForUser(ctx, userId)
 	if err == nil {
-		refreshToken, err = s.db.UpdateExpiresAtRefreshToken(ctx, database.UpdateExpiresAtRefreshTokenParams{
+		// Token exists, update expiration
+		return s.db.UpdateExpiresAtRefreshToken(ctx, database.UpdateExpiresAtRefreshTokenParams{
 			ExpiresAt: time.Now().Add(refreshTokenExpiry),
 			UserID:    userId,
 		})
-		if err != nil {
-			return database.RefreshToken{}, err
-		}
-	} else {
-		refreshToken, err = s.createRefreshToken(ctx, userId)
-		if err != nil {
-			return database.RefreshToken{}, err
-		}
 	}
-	return refreshToken, nil
+
+	// No existing token, create a new one
+	return s.createRefreshToken(ctx, userId)
 }
 
 func (us *defaultUserService) createRefreshToken(c context.Context, userId uuid.UUID) (database.RefreshToken, error) {
@@ -176,17 +172,17 @@ func (s *defaultUserService) AuthenticateUserByEmailAndPassword(ctx context.Cont
 	email = normalizeEmail(email)
 	dbUser, err := s.db.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
 	if err != nil {
-		return nil, fmt.Errorf(userNotFoundError)
+		return nil, errors.New(userNotFoundError)
 	}
 	if err := auth.CheckPasswordHash(password, auth.HashedPassword(dbUser.HashedPassword.String)); err != nil {
-		return nil, fmt.Errorf(invalidPasswordError)
+		return nil, errors.New(invalidPasswordError)
 	}
 	return mapDBUserToServiceUser(&dbUser), nil
 }
 
 func (s *defaultUserService) CreateUser(ctx context.Context, name string, authOptions AuthOptions) (*User, error) {
 	if name == "" {
-		return nil, fmt.Errorf("Name is required")
+		return nil, fmt.Errorf("name is required")
 	}
 	if authOptions.EmailAndPasswordOption != nil {
 		return CreateUserWithEmailAndPasswordStrategy(s, ctx, name, *authOptions.EmailAndPasswordOption)
