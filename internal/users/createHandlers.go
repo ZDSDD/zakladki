@@ -49,10 +49,10 @@ func CreateUserWithEmailAndPasswordStrategy(s *defaultUserService, ctx context.C
 
 	_, err := s.GetUserByEmail(ctx, email)
 	if err == nil {
-		return nil, fmt.Errorf("User already exists")
+		return nil, fmt.Errorf("user already exists")
 	}
 	if !auth.IsEmailValid(email) {
-		return nil, fmt.Errorf("Invalid email")
+		return nil, fmt.Errorf("invalid email")
 	}
 	user, err := s.db.CreateUser(ctx, database.CreateUserParams{
 		Email:          sql.NullString{String: email, Valid: true},
