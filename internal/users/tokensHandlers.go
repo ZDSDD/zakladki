@@ -19,17 +19,9 @@ func (uh *UsersHandler) handleRefreshToken(w http.ResponseWriter, r *http.Reques
 	}
 	refreshToken := cookie.Value
 
-	rtdb, err := uh.db.GetRefreshToken(r.Context(), refreshToken)
+	rtdb, err := uh.us.GetRefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
-		return
-	}
-	if rtdb.ExpiresAt.Before(time.Now()) {
-		jsonUtils.RespondWithJsonError(w, "Refresh token expired", 401)
-		return
-	}
-	if rtdb.RevokedAt.Valid {
-		jsonUtils.RespondWithJsonError(w, "Refresh token revoked", 401)
 		return
 	}
 	userId, err := GetUserIDFromContext(r)
@@ -89,7 +81,7 @@ func (uh *UsersHandler) RequireValidJWTToken(next http.Handler) http.HandlerFunc
 			return
 		}
 
-		user, err := uh.db.GetUserById(r.Context(), userId)
+		user, err := uh.us.GetUserById(r.Context(), userId)
 		if err != nil {
 			log.Printf("Error getting user: %v", err)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -109,7 +101,7 @@ func (uh *UsersHandler) handleRevokeToken(w http.ResponseWriter, r *http.Request
 		jsonUtils.RespondWithJsonError(w, err.Error(), 401)
 		return
 	}
-	if err = uh.db.RevokeRefreshToken(r.Context(), refreshToken); err != nil {
+	if err = uh.us.RevokeRefreshToken(r.Context(), refreshToken); err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}

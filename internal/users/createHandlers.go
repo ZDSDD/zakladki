@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/zdsdd/zakladki/internal/auth"
 	"github.com/zdsdd/zakladki/internal/database"
 	"github.com/zdsdd/zakladki/internal/jsonUtils"
@@ -41,26 +40,6 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	jsonUtils.ResponseWithJson(MapUserToResponse(user), w, http.StatusCreated)
-}
-
-func (us *defaultUserService) GetUserByEmail(ctx context.Context, email string) (*User, error) {
-	if email == "" {
-		return nil, fmt.Errorf("email was empty")
-	}
-	email = normalizeEmail(email)
-	dbUser, err := us.db.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
-	if err != nil {
-		return nil, err
-	}
-	return mapDBUserToServiceUser(&dbUser), nil
-}
-
-func (us *defaultUserService) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
-	dbUser, err := us.db.GetUserById(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return mapDBUserToServiceUser(&dbUser), nil
 }
 
 func CreateUserWithEmailAndPasswordStrategy(s *defaultUserService, ctx context.Context, name string, option EmailAndPasswordAuthOption) (*User, error) {
@@ -115,25 +94,4 @@ func CreateUserWithGoogleStrategy(s *defaultUserService, ctx context.Context, na
 		return nil, err
 	}
 	return mapDBUserToServiceUser(&userdb), nil
-}
-
-func (s *defaultUserService) CreateUser(ctx context.Context, name string, authOptions AuthOptions) (*User, error) {
-	if name == "" {
-		return nil, fmt.Errorf("Name is required")
-	}
-	if authOptions.EmailAndPasswordOption != nil {
-		return CreateUserWithEmailAndPasswordStrategy(s, ctx, name, *authOptions.EmailAndPasswordOption)
-	}
-	// Handle third-party provider registration
-	if authOptions.ThirdPartyOption != nil {
-		switch authOptions.ThirdPartyOption.Provider {
-		case ProviderGoogle:
-			return CreateUserWithGoogleStrategy(s, ctx, name, *authOptions.ThirdPartyOption)
-		// Add other providers here (e.g., Facebook)
-		default:
-			return nil, fmt.Errorf("unsupported provider: %s", authOptions.ThirdPartyOption.Provider)
-		}
-	}
-
-	return nil, fmt.Errorf("invalid auth options")
 }

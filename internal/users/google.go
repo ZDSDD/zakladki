@@ -1,7 +1,6 @@
 package users
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -47,8 +46,7 @@ func (uh *UsersHandler) HandleLoginViaGoogle(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	user, err := uh.db.GetUserByEmail(r.Context(), sql.NullString{String: email, Valid: true})
-
+	user, err := uh.us.GetUserByEmail(r.Context(), email)
 	// User exists in the db
 	if err == nil {
 		// User registered via email/password, now wants to link Google
@@ -57,8 +55,8 @@ func (uh *UsersHandler) HandleLoginViaGoogle(w http.ResponseWriter, r *http.Requ
 
 	// Example of logging user details for internal debugging
 	log.Printf("Google Login: Email: %s, Name: %s, Subject: %s\n", payload.Claims["email"], payload.Claims["name"], payload.Subject)
-	
-	jsonUtils.RespondWithJsonError(w, mapToJson(&user, ))
+
+	jsonUtils.ResponseWithJson(MapUserToResponse(user), w, 200)
 }
 func extractAndValidateEmail(claims map[string]interface{}, w http.ResponseWriter) (string, bool) {
 	emailClaim, ok := claims["email"]
