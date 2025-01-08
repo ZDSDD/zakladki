@@ -247,7 +247,7 @@ type UserReqBody struct {
 	Name     string `json:"name"`
 }
 
-func ExtractUserCredentials(r *http.Request) (userReq UserReqBody, err error) {
+func ExtractUserCredentialsLogin(r *http.Request) (userReq UserReqBody, err error) {
 	err = json.NewDecoder(r.Body).Decode(&userReq)
 	if err != nil {
 		return userReq, err
@@ -257,9 +257,6 @@ func ExtractUserCredentials(r *http.Request) (userReq UserReqBody, err error) {
 	}
 	if userReq.Password == "" {
 		return userReq, fmt.Errorf("password is required")
-	}
-	if userReq.Name == "" {
-		// return userReq, fmt.Errorf("Name is required")
 	}
 	return userReq, nil
 }

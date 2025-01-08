@@ -16,20 +16,27 @@ const (
 
 // TODO: handle scenarios when user uses 3rd party login
 func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
-	userReqBody, err := ExtractUserCredentials(r)
+	userReqBody, err := ExtractUserCredentialsLogin(r)
+
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 400)
 		return
 	}
 	var email, password = userReqBody.Email, userReqBody.Password
 	user, err := uh.us.AuthenticateUserByEmailAndPassword(r.Context(), email, password)
-	if err.Error() == userNotFoundError {
-		jsonUtils.RespondWithJsonError(w, userNotFoundError, http.StatusNotFound)
-		return
-	} else if err.Error() == invalidPasswordError {
-		jsonUtils.RespondWithJsonError(w, "Invalid password", http.StatusUnauthorized)
-		return
+	if err != nil {
+		if err.Error() == userNotFoundError {
+			jsonUtils.RespondWithJsonError(w, userNotFoundError, http.StatusNotFound)
+			return
+		} else if err.Error() == invalidPasswordError {
+			jsonUtils.RespondWithJsonError(w, "Invalid password", http.StatusUnauthorized)
+			return
+		} else {
+			jsonUtils.RespondWithJsonError(w, "Unexpected error occurred", http.StatusInternalServerError)
+			return
+		}
 	}
+
 	token, err := auth.MakeJWT(user.ID, uh.jwtSecret, accessTokenExpiry)
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
@@ -46,8 +53,8 @@ func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Value:       refreshToken.Token,
 		Path:        "/",
 		Expires:     time.Now().Add(refreshTokenExpiry),
-		HttpOnly:    true, // Recommended to help prevent XSS attacks
-		Secure:      true, // Set to true if using HTTPS
+		HttpOnly:    true,  // Recommended to help prevent XSS attacks
+		Secure:      false, // Set to true if using HTTPS
 		SameSite:    http.SameSiteNoneMode,
 		Partitioned: true,
 	})

@@ -18,7 +18,7 @@ func normalizeEmail(email string) string {
 }
 
 func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request) {
-	userReqBody, err := ExtractUserCredentials(r)
+	userReqBody, err := ExtractUserCredentialsLogin(r)
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 400)
 		return
@@ -29,12 +29,7 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 		jsonUtils.RespondWithJsonError(w, err.Error(), 400)
 		return
 	}
-	hashedPassword, err := auth.HashPassword(password)
-	if err != nil {
-		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
-		return
-	}
-	user, err := uh.us.CreateUserWithEmailAndPassword(r.Context(), name, email, string(hashedPassword))
+	user, err := uh.us.CreateUserWithEmailAndPassword(r.Context(), name, email, password)
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
