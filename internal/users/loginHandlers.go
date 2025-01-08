@@ -36,7 +36,10 @@ func (uh *UsersHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	uh.respondWithJWTToken(user, w, r)
+}
 
+func (uh *UsersHandler) respondWithJWTToken(user *User, w http.ResponseWriter, r *http.Request) {
 	token, err := auth.MakeJWT(user.ID, uh.jwtSecret, accessTokenExpiry)
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)

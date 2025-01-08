@@ -71,7 +71,7 @@ func (uh *UsersHandler) HandleLoginViaGoogle(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	log.Printf("Google Login: Email: %s, Name: %s, Subject: %s\n", payload.Claims["email"], payload.Claims["name"], payload.Subject)
-	jsonUtils.ResponseWithJson(MapUserToResponse(user), w, 200)
+	uh.respondWithJWTToken(user, w, r)
 }
 func extractAndValidateEmail(claims map[string]interface{}, w http.ResponseWriter) (string, bool) {
 	emailClaim, ok := claims["email"]
