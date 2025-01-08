@@ -25,6 +25,7 @@ type User struct {
 	EmailVerified bool
 	CreatedAt     time.Time
 }
+
 type AuthProvider string
 
 const (
@@ -32,23 +33,9 @@ const (
 	ProviderFacebook AuthProvider = "facebook"
 )
 
-type EmailAndPasswordAuthOption struct {
-	email          string
-	HashedPassword auth.HashedPassword
-}
-
-type ThirdPartyAuthOption struct {
-	Provider   AuthProvider // "google", "facebook", etc.
-	ProviderID string       // Third-party provider user ID
-}
-
-type AuthOptions struct {
-	EmailAndPasswordOption *EmailAndPasswordAuthOption // Only for password-based login
-	ThirdPartyOption       *ThirdPartyAuthOption
-}
-
 type UserService interface {
-	CreateUser(ctx context.Context, name string, authOptions AuthOptions) (*User, error)
+	CreateUserWithEmailAndPassword(ctx context.Context, name, email, password string) (*User, error)
+	CreateUserWithGoogle(ctx context.Context, params GoogleUserCreateParams) (*User, error)
 	GetUser(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	GetUserById(ctx context.Context, id uuid.UUID) (*User, error)
@@ -63,6 +50,42 @@ type UserService interface {
 type defaultUserService struct {
 	db                 *database.Queries
 	minPasswordEntropy float64
+}
+
+func (s *defaultUserService) CreateUserWithEmailAndPassword(ctx context.Context, name, email, password string) (*User, error) {
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	if email == "" {
+		return nil, fmt.Errorf("email is required")
+	}
+	if password == "" {
+		return nil, fmt.Errorf("password is required")
+	}
+
+	hashedPassword, err := auth.HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &User{
+		ID:            uuid.New(),
+		Email:         email,
+		Name:          name,
+		EmailVerified: false,
+		CreatedAt:     time.Now(),
+	}
+
+	_, err = s.db.CreateUser(ctx, database.CreateUserParams{
+		Email:          sql.NullString{String: user.Email, Valid: true},
+		Name:           user.Name,
+		HashedPassword: sql.NullString{String: hashedPassword.ToString(), Valid: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (s *defaultUserService) UpdateUserEmail(ctx context.Context, userID uuid.UUID, newEmail string) (*User, error) {
@@ -84,6 +107,7 @@ func (s *defaultUserService) UpdateUserEmail(ctx context.Context, userID uuid.UU
 	}
 	return mapDBUserToServiceUser(&updatedUser), nil
 }
+
 func (s *defaultUserService) RevokeRefreshToken(ctx context.Context, refreshT string) error {
 	return s.db.RevokeRefreshToken(ctx, refreshT)
 }
@@ -180,27 +204,6 @@ func (s *defaultUserService) AuthenticateUserByEmailAndPassword(ctx context.Cont
 	return mapDBUserToServiceUser(&dbUser), nil
 }
 
-func (s *defaultUserService) CreateUser(ctx context.Context, name string, authOptions AuthOptions) (*User, error) {
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-	if authOptions.EmailAndPasswordOption != nil {
-		return CreateUserWithEmailAndPasswordStrategy(s, ctx, name, *authOptions.EmailAndPasswordOption)
-	}
-	// Handle third-party provider registration
-	if authOptions.ThirdPartyOption != nil {
-		switch authOptions.ThirdPartyOption.Provider {
-		case ProviderGoogle:
-			return CreateUserWithGoogleStrategy(s, ctx, name, *authOptions.ThirdPartyOption)
-		// Add other providers here (e.g., Facebook)
-		default:
-			return nil, fmt.Errorf("unsupported provider: %s", authOptions.ThirdPartyOption.Provider)
-		}
-	}
-
-	return nil, fmt.Errorf("invalid auth options")
-}
-
 func (us *defaultUserService) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	if email == "" {
 		return nil, fmt.Errorf("email was empty")
@@ -260,6 +263,7 @@ func ExtractUserCredentials(r *http.Request) (userReq UserReqBody, err error) {
 	}
 	return userReq, nil
 }
+
 func (uh *UsersHandler) UsersRouter() http.Handler {
 	// User-related routes
 	r := chi.NewRouter()

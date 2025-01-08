@@ -43,19 +43,34 @@ func (uh *UsersHandler) HandleLoginViaGoogle(w http.ResponseWriter, r *http.Requ
 
 	email, ok := extractAndValidateEmail(payload.Claims, w)
 	if !ok {
+		jsonUtils.RespondWithJsonError(w, "Invalid email in the JWT", http.StatusBadRequest)
 		return
 	}
 
 	user, err := uh.us.GetUserByEmail(r.Context(), email)
 	// User exists in the db
+	userName, ok := payload.Claims["name"].(string)
+	if !ok {
+		jsonUtils.RespondWithJsonError(w, "Name claim is not a string", http.StatusBadRequest)
+		return
+	}
+
 	if err == nil {
 		// User registered via email/password, now wants to link Google
 		//TODO
+	} else if err.Error() == "sql: no rows in result set" {
+		// User is not found in the db
+		// Create new google user and save it to the db
+		user, err = uh.us.CreateUserWithGoogle(r.Context(), GoogleUserCreateParams{Email: email, UserGooglesId: payload.Subject, Name: userName})
+	} else {
+		//something else went wrong
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 	}
-
-	// Example of logging user details for internal debugging
+	if err != nil {
+		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
+		return
+	}
 	log.Printf("Google Login: Email: %s, Name: %s, Subject: %s\n", payload.Claims["email"], payload.Claims["name"], payload.Subject)
-
 	jsonUtils.ResponseWithJson(MapUserToResponse(user), w, 200)
 }
 func extractAndValidateEmail(claims map[string]interface{}, w http.ResponseWriter) (string, bool) {

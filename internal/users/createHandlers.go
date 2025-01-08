@@ -34,7 +34,7 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
-	user, err := uh.us.CreateUser(r.Context(), name, AuthOptions{EmailAndPasswordOption: &EmailAndPasswordAuthOption{email: email, HashedPassword: hashedPassword}})
+	user, err := uh.us.CreateUserWithEmailAndPassword(r.Context(), name, email, string(hashedPassword))
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
@@ -42,52 +42,35 @@ func (uh *UsersHandler) handleCreateUser(w http.ResponseWriter, r *http.Request)
 	jsonUtils.ResponseWithJson(MapUserToResponse(user), w, http.StatusCreated)
 }
 
-func CreateUserWithEmailAndPasswordStrategy(s *defaultUserService, ctx context.Context, name string, option EmailAndPasswordAuthOption) (*User, error) {
-	// Check if a user with this email already exits
-	var email string = option.email
-	var password auth.HashedPassword = option.HashedPassword
-
-	_, err := s.GetUserByEmail(ctx, email)
-	if err == nil {
-		return nil, fmt.Errorf("user already exists")
-	}
-	if !auth.IsEmailValid(email) {
-		return nil, fmt.Errorf("invalid email")
-	}
-	user, err := s.db.CreateUser(ctx, database.CreateUserParams{
-		Email:          sql.NullString{String: email, Valid: true},
-		HashedPassword: sql.NullString{String: password.ToString(), Valid: true},
-		Name:           name,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &User{ID: user.ID}, nil
+type GoogleUserCreateParams struct {
+	Email         string
+	UserGooglesId string
+	Name          string
 }
 
-func CreateUserWithGoogleStrategy(s *defaultUserService, ctx context.Context, name string, option ThirdPartyAuthOption) (*User, error) {
+func (us *defaultUserService) CreateUserWithGoogle(ctx context.Context, params GoogleUserCreateParams) (*User, error) {
 	// Check if user already exits
-	provider := option.Provider
-	userProviderId := option.ProviderID
+	provider := ProviderGoogle
 
-	_, err := s.db.GetUserByProvider(ctx, database.GetUserByProviderParams{
+	_, err := us.db.GetUserByProvider(ctx, database.GetUserByProviderParams{
 		Provider:       database.AuthProvider(provider),
-		ProviderUserID: userProviderId,
+		ProviderUserID: params.UserGooglesId,
 	})
 	// User already in the db
 	if err == nil {
 		return nil, fmt.Errorf("user already exist")
 	}
 	// If user doesn't exits, create an account
-	userdb, err := s.db.CreateUser(ctx, database.CreateUserParams{
-		Name: name,
+	userdb, err := us.db.CreateUser(ctx, database.CreateUserParams{
+		Email: sql.NullString{Valid: true, String: params.Email},
+		Name:  params.Name,
 	})
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.db.CreateUserWithProvider(ctx, database.CreateUserWithProviderParams{
+	_, err = us.db.CreateUserWithProvider(ctx, database.CreateUserWithProviderParams{
 		UserID:         userdb.ID,
-		ProviderUserID: userProviderId,
+		ProviderUserID: params.UserGooglesId,
 		Provider:       database.AuthProvider(provider),
 	})
 	if err != nil {
