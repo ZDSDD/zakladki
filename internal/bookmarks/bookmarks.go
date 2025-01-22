@@ -1,8 +1,8 @@
 package bookmarks
 
 import (
+	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/zdsdd/zakladki/internal/database"
@@ -10,17 +10,17 @@ import (
 )
 
 type BookmarksHandler struct {
-	db *database.Queries
+	db         *database.Queries
+	CDNBaseURL string
 }
 
-func NewBookmarksHandler(db *database.Queries) *BookmarksHandler {
-	return &BookmarksHandler{db: db}
+func NewBookmarksHandler(db *database.Queries, CDNBaseUrl string) *BookmarksHandler {
+	return &BookmarksHandler{db: db, CDNBaseURL: CDNBaseUrl}
 }
 
 func (bh *BookmarksHandler) BookmarksRouter() http.Handler {
 	mux := chi.NewRouter()
 	mux.Get("/", bh.HandleGetBookmarks)
-	mux.Get("/images", getImageHandler)
 	return mux
 }
 
@@ -30,24 +30,8 @@ func (bh *BookmarksHandler) HandleGetBookmarks(w http.ResponseWriter, r *http.Re
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
-	jsonUtils.ResponseWithJson(bookmarks, w, http.StatusOK)
-}
-
-// Handler to fetch a specific image based on its name
-func getImageHandler(w http.ResponseWriter, r *http.Request) {
-	imageName := r.URL.Query().Get("name")
-
-	if imageName == "" {
-		http.Error(w, "Image name is required", http.StatusBadRequest)
-		return
+	for i, v := range bookmarks {
+		bookmarks[i].ImageUrl = fmt.Sprintf("%s/%s", bh.CDNBaseURL, v.ImageUrl)
 	}
-
-	// Enforcing case insensitivity for image names
-	imageName = strings.ToLower(imageName)
-
-	// Construct the file path
-	filePath := "./images/" + imageName + ".jpg" // Assuming images are .jpg
-
-	// Serve the image
-	http.ServeFile(w, r, filePath)
+	jsonUtils.ResponseWithJson(bookmarks, w, http.StatusOK)
 }

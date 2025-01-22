@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -35,25 +36,23 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 	var allowedOrigins []string
-	allowedOrigins = strings.Split(os.Getenv("ALLOWED_ORIGINS"), ", ")
+	allowedOrigins = strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
 	if allowedOrigins == nil {
 		allowedOrigins = []string{"http://localhost:5173"}
 	}
 	log.Default().Printf("Allowed origins: %v\n", allowedOrigins)
 	c := cors.New(cors.Options{
-		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		AllowedOrigins: allowedOrigins,
-		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
-		AllowedMethods:   []string{"GET", "POST", "PUT", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link", "Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
+		AllowedOrigins: []string{"*"}, // Replace with your frontend's URL
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		Debug:          true,
+		MaxAge:         300,
 	})
+
 	r.Use(c.Handler)
 	r.Handle("/images/*", http.StripPrefix("/images/", http.FileServer(http.Dir("./images"))))
 	port := getEnvVariable("PORT")
 	dbURL := getEnvVariable("DB_URL")
+	fmt.Printf("DB URL: %v\n", dbURL)
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Error opening database: %s", err)
@@ -85,7 +84,9 @@ func main() {
 	apiRouter.Mount("/users", userHandler.UsersRouter())
 
 	// bookmarks related routes
-	bh := bookmarks.NewBookmarksHandler(dbQueries)
+
+	cdn := getEnvVariable("CDN") //content delivery network (cdn)
+	bh := bookmarks.NewBookmarksHandler(dbQueries, cdn)
 	apiRouter.Mount("/bookmarks", bh.BookmarksRouter())
 	// Health check and metrics routes
 	apiRouter.Get("/healthz", handleHealthz)
@@ -98,6 +99,7 @@ func main() {
 	r.Mount("/admin", cfg.adminRouter(userHandler))
 
 	log.Printf("Server running successfully on port: %s\n", port)
+	log.Printf("full address: %v", server.Addr)
 	log.Fatal(server.ListenAndServe())
 }
 

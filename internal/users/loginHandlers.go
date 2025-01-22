@@ -56,8 +56,8 @@ func (uh *UsersHandler) respondWithJWTToken(user *User, w http.ResponseWriter, r
 		Value:       refreshToken.Token,
 		Path:        "/",
 		Expires:     time.Now().Add(refreshTokenExpiry),
-		HttpOnly:    true,  // Recommended to help prevent XSS attacks
-		Secure:      false, // Set to true if using HTTPS
+		HttpOnly:    true, // Recommended to help prevent XSS attacks
+		Secure:      true, // Set to true if using HTTPS
 		SameSite:    http.SameSiteNoneMode,
 		Partitioned: true,
 	})
