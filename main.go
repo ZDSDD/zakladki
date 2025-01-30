@@ -57,10 +57,11 @@ func main() {
 
 	log.Printf("Allowed origins: %v\n", allowedOrigins)
 
+	corsDebugMode := getEnvVariable("CORS_DEBUG", "false") == "true"
 	c := cors.New(cors.Options{
 		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		Debug:          true,
+		Debug:          corsDebugMode,
 		MaxAge:         300,
 	})
 
