@@ -59,10 +59,11 @@ func main() {
 
 	corsDebugMode := getEnvVariable("CORS_DEBUG", "false") == "true"
 	c := cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins,
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		Debug:          corsDebugMode,
-		MaxAge:         300,
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		Debug:            corsDebugMode,
+		AllowCredentials: true,
+		MaxAge:           300,
 	})
 
 	r.Use(c.Handler)
@@ -73,6 +74,7 @@ func main() {
 		log.Fatal("Missing required environment variable: DB_URL")
 	}
 	fmt.Printf("DB URL: %v\n", dbURL)
+	// todo: add a check to see if the db is reachable
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Error opening database: %s", err)

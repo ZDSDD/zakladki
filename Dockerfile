@@ -26,7 +26,7 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 
 # Copy the .env file
-COPY app.env .
+# COPY .env .
 
 # Command to run the executable
 CMD ["./main"]
