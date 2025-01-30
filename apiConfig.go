@@ -24,7 +24,7 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) handleReset(w http.ResponseWriter, r *http.Request) {
-	platform := getEnvVariable("PLATFORM")
+	platform := getEnvVariable("PLATFORM", "dev")
 	if platform != "dev" {
 		w.WriteHeader(http.StatusForbidden)
 		return

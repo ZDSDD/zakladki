@@ -21,11 +21,25 @@ import (
 	"github.com/zdsdd/zakladki/internal/users"
 )
 
-func main() {
-	err := godotenv.Load("app.env")
+func init() {
+	// Load .env only once at startup (ignore error in production)
+	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatalf("Error loading .env file")
+		log.Println("Warning: .env file not found, relying on environment variables")
 	}
+}
+
+// Safe function to get env variables with a fallback
+func getEnvVariable(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func main() {
+	// init() is called implicitly
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
@@ -35,14 +49,16 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
-	var allowedOrigins []string
-	allowedOrigins = strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
-	if allowedOrigins == nil {
-		allowedOrigins = []string{"http://localhost:5173"}
+
+	allowedOrigins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+	if len(allowedOrigins) == 0 || allowedOrigins[0] == "" {
+		allowedOrigins = []string{"http://localhost:5173"} // Default for local development
 	}
-	log.Default().Printf("Allowed origins: %v\n", allowedOrigins)
+
+	log.Printf("Allowed origins: %v\n", allowedOrigins)
+
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"}, // Replace with your frontend's URL
+		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		Debug:          true,
 		MaxAge:         300,
@@ -50,8 +66,11 @@ func main() {
 
 	r.Use(c.Handler)
 	r.Handle("/images/*", http.StripPrefix("/images/", http.FileServer(http.Dir("./images"))))
-	port := getEnvVariable("PORT")
-	dbURL := getEnvVariable("DB_URL")
+	port := getEnvVariable("PORT", "8080")
+	dbURL := getEnvVariable("DB_URL", "")
+	if dbURL == "" {
+		log.Fatal("Missing required environment variable: DB_URL")
+	}
 	fmt.Printf("DB URL: %v\n", dbURL)
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
@@ -61,10 +80,15 @@ func main() {
 	defer db.Close()
 	dbQueries := database.New(db)
 
+	jwtSec := getEnvVariable("JWT_SECRET", "")
+	if jwtSec == "" {
+		log.Fatal("Missing required environment variable: JWT_SECRET")
+	}
+
 	cfg := &apiConfig{
 		fileserverHits:     atomic.Int32{},
 		db:                 dbQueries,
-		jwtSecret:          getEnvVariable("JWT_SECRET"),
+		jwtSecret:          jwtSec,
 		minPasswordEntropy: 60.0,
 	}
 	server := http.Server{
@@ -85,7 +109,10 @@ func main() {
 
 	// bookmarks related routes
 
-	cdn := getEnvVariable("CDN") //content delivery network (cdn)
+	cdn := getEnvVariable("CDN", "") //content delivery network (cdn)
+	if cdn == "" {
+		log.Fatal("Missing required environment variable: CDN")
+	}
 	bh := bookmarks.NewBookmarksHandler(dbQueries, cdn)
 	apiRouter.Mount("/bookmarks", bh.BookmarksRouter())
 	// Health check and metrics routes
@@ -120,12 +147,4 @@ func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 	}
-}
-
-func getEnvVariable(key string) string {
-	err := godotenv.Load("app.env")
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
-	return os.Getenv(key)
 }
