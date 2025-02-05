@@ -7,7 +7,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -57,25 +56,23 @@ func (q *Queries) GetUserBookmarksLikes(ctx context.Context, userID uuid.UUID) (
 
 const likeBookmark = `-- name: LikeBookmark :one
 
-INSERT INTO users_bookmarks_likes (user_id, bookmark_id, is_liked, reaction_type)
-VALUES ($1, $2, TRUE, $3)
-RETURNING user_id, bookmark_id, is_liked, reaction_type, created_at, updated_at
+INSERT INTO users_bookmarks_likes (user_id, bookmark_id, is_liked)
+VALUES ($1, $2, TRUE)
+RETURNING user_id, bookmark_id, is_liked, created_at, updated_at
 `
 
 type LikeBookmarkParams struct {
-	UserID       uuid.UUID
-	BookmarkID   int32
-	ReactionType sql.NullString
+	UserID     uuid.UUID
+	BookmarkID int32
 }
 
 func (q *Queries) LikeBookmark(ctx context.Context, arg LikeBookmarkParams) (UsersBookmarksLike, error) {
-	row := q.db.QueryRowContext(ctx, likeBookmark, arg.UserID, arg.BookmarkID, arg.ReactionType)
+	row := q.db.QueryRowContext(ctx, likeBookmark, arg.UserID, arg.BookmarkID)
 	var i UsersBookmarksLike
 	err := row.Scan(
 		&i.UserID,
 		&i.BookmarkID,
 		&i.IsLiked,
-		&i.ReactionType,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -87,7 +84,7 @@ const unlikeBookmark = `-- name: UnlikeBookmark :exec
 UPDATE users_bookmarks_likes
 SET is_liked = FALSE
 WHERE user_id = $1 AND bookmark_id = $2
-RETURNING user_id, bookmark_id, is_liked, reaction_type, created_at, updated_at
+RETURNING user_id, bookmark_id, is_liked, created_at, updated_at
 `
 
 type UnlikeBookmarkParams struct {

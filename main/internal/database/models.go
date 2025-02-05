@@ -107,10 +107,9 @@ type UserAuthProvider struct {
 }
 
 type UsersBookmarksLike struct {
-	UserID       uuid.UUID
-	BookmarkID   int32
-	IsLiked      sql.NullBool
-	ReactionType sql.NullString
-	CreatedAt    sql.NullTime
-	UpdatedAt    sql.NullTime
+	UserID     uuid.UUID
+	BookmarkID int32
+	IsLiked    sql.NullBool
+	CreatedAt  sql.NullTime
+	UpdatedAt  sql.NullTime
 }

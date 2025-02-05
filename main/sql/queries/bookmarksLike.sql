@@ -6,8 +6,8 @@ WHERE users_bookmarks_likes.user_id = $1 AND users_bookmarks_likes.is_liked = TR
 
 -- name: LikeBookmark :one
 
-INSERT INTO users_bookmarks_likes (user_id, bookmark_id, is_liked, reaction_type)
-VALUES ($1, $2, TRUE, $3)
+INSERT INTO users_bookmarks_likes (user_id, bookmark_id, is_liked)
+VALUES ($1, $2, TRUE)
 RETURNING *;
 
 -- name: UnlikeBookmark :exec

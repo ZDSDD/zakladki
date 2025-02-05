@@ -279,7 +279,7 @@ func (uh *UsersHandler) UsersRouter() http.Handler {
 	return r
 }
 
-// Helper function to get user ID from context
+// Helper function to get user ID from context. This is the user ID of the user who is making the request
 func GetUserIDFromContext(r *http.Request) (uuid.UUID, error) {
 	userId, ok := r.Context().Value(UserIDKey).(uuid.UUID)
 	if !ok || userId == uuid.Nil {

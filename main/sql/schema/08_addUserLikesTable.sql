@@ -3,7 +3,6 @@ CREATE TABLE users_bookmarks_likes (
     user_id UUID NOT NULL,
     bookmark_id INTEGER NOT NULL,
     is_liked BOOLEAN DEFAULT TRUE,
-    reaction_type VARCHAR(50),  -- Optional, for different reactions
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, bookmark_id),

@@ -81,8 +81,15 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
-	dbQueries := database.New(db)
+	// Check if the database is reachable
+	err = db.Ping()
+	if err != nil {
+		log.Fatalf("Error connecting to the database: %s", err)
+		os.Exit(1)
+	}
 
+	fmt.Println("Successfully connected to the database!")
+	dbQueries := database.New(db)
 	jwtSec := getEnvVariable("JWT_SECRET", "")
 	if jwtSec == "" {
 		log.Fatal("Missing required environment variable: JWT_SECRET")
@@ -116,13 +123,15 @@ func main() {
 	if cdn == "" {
 		log.Fatal("Missing required environment variable: CDN")
 	}
-	bh := bookmarks.NewBookmarksHandler(dbQueries, cdn)
-	apiRouter.Mount("/bookmarks", bh.BookmarksRouter())
+	bookmarksHandler := bookmarks.NewBookmarksHandler(dbQueries, cdn)
+	apiRouter.Mount("/bookmarks", bookmarksHandler.BookmarksRouter())
+
+	lh := bookmarks.NewLikesHandler(bookmarksHandler, userHandler)
+	apiRouter.Mount("/likes", lh.LikesRouter())
 	// Health check and metrics routes
 	apiRouter.Get("/healthz", handleHealthz)
 	apiRouter.Get("/metrics", cfg.handleMetrics)
 	r.Mount("/api", apiRouter)
-
 	r.Handle("/app/", cfg.middlewareMetricsInc(http.StripPrefix("/app/", http.FileServer(http.Dir(".")))))
 
 	// Admin-related routes
