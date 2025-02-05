@@ -105,3 +105,12 @@ type UserAuthProvider struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
+
+type UsersBookmarksLike struct {
+	UserID       uuid.UUID
+	BookmarkID   int32
+	IsLiked      sql.NullBool
+	ReactionType sql.NullString
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+}
