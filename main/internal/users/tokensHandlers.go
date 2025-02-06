@@ -12,7 +12,8 @@ import (
 
 func (uh *UsersHandler) handleRefreshToken(w http.ResponseWriter, r *http.Request) {
 	// Extract refresh token from cookie
-	cookie, err := r.Cookie("refresh_token")
+	cookie, err := r.Cookie(RefreshTokenCookieKey)
+	log.Printf("cookie, %v", cookie.Unparsed)
 	if err != nil {
 		jsonUtils.RespondWithJsonError(w, "Refresh token not found", 401)
 		return

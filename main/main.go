@@ -61,6 +61,7 @@ func main() {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"}, // ✅ Allow Authorization header
 		Debug:            corsDebugMode,
 		AllowCredentials: true,
 		MaxAge:           300,

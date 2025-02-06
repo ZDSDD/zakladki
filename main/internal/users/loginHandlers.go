@@ -1,6 +1,7 @@
 package users
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -9,9 +10,9 @@ import (
 )
 
 const (
-	accessTokenExpiry  = time.Hour
-	refreshTokenExpiry = 24 * time.Hour * 60 // 60 days
-	refreshTokenCookie = "refresh_token"
+	accessTokenExpiry     = time.Hour
+	refreshTokenExpiry    = 24 * time.Hour * 60 // 60 days
+	RefreshTokenCookieKey = "refresh_token"
 )
 
 // TODO: handle scenarios when user uses 3rd party login
@@ -51,13 +52,14 @@ func (uh *UsersHandler) respondWithJWTToken(user *User, w http.ResponseWriter, r
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
+	log.Printf("refreshToken: %s", refreshToken.Token)
 	http.SetCookie(w, &http.Cookie{
-		Name:        refreshTokenCookie,
+		Name:        RefreshTokenCookieKey,
 		Value:       refreshToken.Token,
 		Path:        "/",
 		Expires:     time.Now().Add(refreshTokenExpiry),
-		HttpOnly:    true, // Recommended to help prevent XSS attacks
-		Secure:      true, // Set to true if using HTTPS
+		HttpOnly:    true,  // Recommended to help prevent XSS attacks
+		Secure:      false, // Set to true if using HTTPS
 		SameSite:    http.SameSiteNoneMode,
 		Partitioned: true,
 	})

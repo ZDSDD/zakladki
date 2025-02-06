@@ -11,39 +11,50 @@ import (
 	"github.com/google/uuid"
 )
 
+const getLike = `-- name: GetLike :one
+
+SELECT user_id, bookmark_id, is_liked, created_at, updated_at FROM users_bookmarks_likes
+WHERE user_id = $1 AND bookmark_id = $2
+`
+
+type GetLikeParams struct {
+	UserID     uuid.UUID
+	BookmarkID int32
+}
+
+func (q *Queries) GetLike(ctx context.Context, arg GetLikeParams) (UsersBookmarksLike, error) {
+	row := q.db.QueryRowContext(ctx, getLike, arg.UserID, arg.BookmarkID)
+	var i UsersBookmarksLike
+	err := row.Scan(
+		&i.UserID,
+		&i.BookmarkID,
+		&i.IsLiked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserBookmarksLikes = `-- name: GetUserBookmarksLikes :many
 
-SELECT bookmarks.id, bookmarks.name, bookmarks.available_amount, bookmarks.size, bookmarks.price, bookmarks.material, bookmarks.category_id, bookmarks.description, bookmarks.image_url, bookmarks.created_at, bookmarks.updated_at, bookmarks.is_active FROM bookmarks INNER JOIN
+SELECT bookmarks.id FROM bookmarks INNER JOIN
 users_bookmarks_likes ON bookmarks.id = users_bookmarks_likes.bookmark_id
 WHERE users_bookmarks_likes.user_id = $1 AND users_bookmarks_likes.is_liked = TRUE
 `
 
-func (q *Queries) GetUserBookmarksLikes(ctx context.Context, userID uuid.UUID) ([]Bookmark, error) {
+func (q *Queries) GetUserBookmarksLikes(ctx context.Context, userID uuid.UUID) ([]int32, error) {
 	rows, err := q.db.QueryContext(ctx, getUserBookmarksLikes, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Bookmark
+	var items []int32
 	for rows.Next() {
-		var i Bookmark
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.AvailableAmount,
-			&i.Size,
-			&i.Price,
-			&i.Material,
-			&i.CategoryID,
-			&i.Description,
-			&i.ImageUrl,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.IsActive,
-		); err != nil {
+		var id int32
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -95,4 +106,31 @@ type UnlikeBookmarkParams struct {
 func (q *Queries) UnlikeBookmark(ctx context.Context, arg UnlikeBookmarkParams) error {
 	_, err := q.db.ExecContext(ctx, unlikeBookmark, arg.UserID, arg.BookmarkID)
 	return err
+}
+
+const updateBookmarkLike = `-- name: UpdateBookmarkLike :one
+
+UPDATE users_bookmarks_likes
+SET is_liked = $3
+WHERE user_id = $1 AND bookmark_id = $2
+RETURNING user_id, bookmark_id, is_liked, created_at, updated_at
+`
+
+type UpdateBookmarkLikeParams struct {
+	UserID     uuid.UUID
+	BookmarkID int32
+	IsLiked    bool
+}
+
+func (q *Queries) UpdateBookmarkLike(ctx context.Context, arg UpdateBookmarkLikeParams) (UsersBookmarksLike, error) {
+	row := q.db.QueryRowContext(ctx, updateBookmarkLike, arg.UserID, arg.BookmarkID, arg.IsLiked)
+	var i UsersBookmarksLike
+	err := row.Scan(
+		&i.UserID,
+		&i.BookmarkID,
+		&i.IsLiked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

@@ -82,9 +82,6 @@ func (lh *LikesHandler) HandleGetLikesForUser(w http.ResponseWriter, r *http.Req
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
-	for i, v := range bookmarks {
-		bookmarks[i].ImageUrl = fmt.Sprintf("%s/%s", lh.bh.CDNBaseURL, v.ImageUrl)
-	}
 	jsonUtils.ResponseWithJson(bookmarks, w, http.StatusOK)
 }
 
@@ -94,14 +91,40 @@ func (lh *LikesHandler) HandleLike(w http.ResponseWriter, r *http.Request) {
 		jsonUtils.RespondWithJsonError(w, "Invalid user or bookmark ID", 400)
 		return
 	}
-	_, err = lh.bh.db.LikeBookmark(r.Context(), database.LikeBookmarkParams{
+
+	// Check if the bookmark is already liked by the user
+	_, err = lh.bh.db.GetLike(r.Context(), database.GetLikeParams{
 		UserID:     userID,
 		BookmarkID: bookmarkID,
 	})
-	if err != nil {
+	if err != nil && err.Error() != "sql: no rows in result set" {
 		jsonUtils.RespondWithJsonError(w, err.Error(), 500)
 		return
 	}
+
+	if err == nil {
+		// Update the like flag if the bookmark is already liked
+		_, err = lh.bh.db.UpdateBookmarkLike(r.Context(), database.UpdateBookmarkLikeParams{
+			UserID:     userID,
+			BookmarkID: bookmarkID,
+			IsLiked:    true,
+		})
+		if err != nil {
+			jsonUtils.RespondWithJsonError(w, err.Error(), 500)
+			return
+		}
+	} else {
+		// Insert a new like if the bookmark is not already liked
+		_, err = lh.bh.db.LikeBookmark(r.Context(), database.LikeBookmarkParams{
+			UserID:     userID,
+			BookmarkID: bookmarkID,
+		})
+		if err != nil {
+			jsonUtils.RespondWithJsonError(w, err.Error(), 500)
+			return
+		}
+	}
+
 	jsonUtils.ResponseWithJson("Success", w, http.StatusOK)
 }
 
