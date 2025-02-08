@@ -12,6 +12,10 @@ import (
 )
 
 func (uh *UsersHandler) HandleLoginViaGoogle(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent) // Respond with 204 No Content
+		return
+	}
 	var body struct {
 		Token string `json:"token"`
 	}

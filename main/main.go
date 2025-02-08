@@ -58,10 +58,13 @@ func main() {
 	log.Printf("Allowed origins: %v\n", allowedOrigins)
 
 	corsDebugMode := getEnvVariable("CORS_DEBUG", "false") == "true"
+	if corsDebugMode {
+		log.Println("CORS Debug mode enabled")
+	}
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"}, // ✅ Allow Authorization header
+		AllowedHeaders:   []string{"Authorization", "Content-Type"}, // Allow Authorization header
 		Debug:            corsDebugMode,
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -104,7 +107,7 @@ func main() {
 	}
 	server := http.Server{
 		Handler:      r,
-		Addr:         ":" + port,
+		Addr:         "0.0.0.0:" + port,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
